@@ -370,7 +370,7 @@ function BallotScene({ currentBallot, onBallotLanded, tallies, phase }: BallotSc
 
       // Animate ballot
       if (state.ballotMesh && state.animPhase !== "none" && state.animPhase !== "done") {
-        state.animProgress += 0.016;
+        state.animProgress += 0.008;
         const mesh = state.ballotMesh;
 
         if (state.animPhase === "unfold") {
@@ -565,8 +565,7 @@ function BallotScene({ currentBallot, onBallotLanded, tallies, phase }: BallotSc
   return (
     <div
       ref={containerRef}
-      className="three-canvas-container w-full rounded-xl overflow-hidden"
-      style={{ height: 420 }}
+      className="three-canvas-container w-full h-full overflow-hidden"
     />
   );
 }
@@ -768,8 +767,8 @@ export default function ElectionPage() {
 
   return (
     <div className="min-h-screen bg-[#f1f5f9] relative">
-      {/* Top header bar */}
-      <header className="relative z-10 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
+      {/* Top header bar — hidden during full-screen counting */}
+      <header className={`relative z-10 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm ${phase === "counting" || phase === "certified" ? "hidden" : ""}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-md">
@@ -880,106 +879,92 @@ export default function ElectionPage() {
 
         {/* ─── COUNTING / CERTIFIED ─── */}
         {(phase === "counting" || phase === "certified") && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4" style={{ animation: "fadeInUp 0.6s ease-out" }}>
-            {/* Left: Three.js scene */}
-            <div className="lg:col-span-5 space-y-4">
-              {/* Counter */}
-              <div className="glass-panel rounded-xl p-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+          <div className="fixed inset-0 z-20" style={{ animation: "fadeInUp 0.6s ease-out" }}>
+            {/* Full-screen 3D scene (background layer) */}
+            <div className="absolute inset-0">
+              <BallotScene
+                currentBallot={currentBallot}
+                onBallotLanded={handleBallotLanded}
+                tallies={tallies}
+                phase={phase}
+              />
+            </div>
+
+            {/* ── TOP: Progress bar ── */}
+            <div className="absolute top-4 left-4 right-4 z-30">
+              <div className="max-w-xl mx-auto glass-panel rounded-xl p-3 flex items-center gap-4" style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)" }}>
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                  <span className="text-[11px] text-slate-500">Ballots Processed</span>
+                  <span className="text-[11px] text-slate-500 whitespace-nowrap">Ballots Processed</span>
                 </div>
-                <div className="text-lg font-bold text-slate-800 font-mono">
-                  {countedIndex} <span className="text-slate-400 text-sm font-normal">/ {ballots.length}</span>
+                <div className="flex-1">
+                  <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                    <div
+                      className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-300 relative"
+                      style={{ width: `${ballots.length > 0 ? (countedIndex / ballots.length) * 100 : 0}%` }}
+                    >
+                      <div className="absolute inset-0 progress-shimmer rounded-full" />
+                    </div>
+                  </div>
+                </div>
+                <div className="text-sm font-bold text-slate-800 font-mono flex-shrink-0">
+                  {countedIndex} <span className="text-slate-400 text-xs font-normal">/ {ballots.length}</span>
                 </div>
               </div>
 
-              {/* Three.js Canvas */}
-              <div className="glass-panel rounded-xl overflow-hidden">
-                <BallotScene
-                  currentBallot={currentBallot}
-                  onBallotLanded={handleBallotLanded}
-                  tallies={tallies}
-                  phase={phase}
-                />
-              </div>
-
-              {/* Current ballot info */}
+              {/* Current ballot indicator */}
               {currentBallot && phase === "counting" && (
-                <div className="glass-panel rounded-xl p-3 flex items-center gap-3">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: PARTY_CONFIG[currentBallot.partyCode]?.color || "#94a3b8" }}
-                  />
-                  <div className="text-xs text-slate-600">
-                    <span className="font-mono text-slate-400">#{currentBallot.id.toString().padStart(4, "0")}</span>
-                    {" → "}
-                    <span className="font-semibold text-slate-800">
-                      [{currentBallot.partyCode}] {currentBallot.partyName}
-                    </span>
+                <div className="max-w-xs mx-auto mt-2">
+                  <div className="glass-panel rounded-lg px-3 py-1.5 flex items-center gap-2 justify-center" style={{ background: "rgba(255,255,255,0.75)", backdropFilter: "blur(8px)" }}>
+                    <div
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{ backgroundColor: PARTY_CONFIG[currentBallot.partyCode]?.color || "#94a3b8" }}
+                    />
+                    <div className="text-[11px] text-slate-600">
+                      <span className="font-mono text-slate-400">#{currentBallot.id.toString().padStart(4, "0")}</span>
+                      {" → "}
+                      <span className="font-semibold text-slate-800">
+                        [{currentBallot.partyCode}] {currentBallot.partyName}
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Right: Charts & table */}
-            <div className="lg:col-span-7 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
-                {/* Bar chart */}
-                <div className="sm:col-span-3 glass-panel rounded-xl p-4">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-4">Vote Distribution</div>
-                  <div className="space-y-3">
-                    {tallyArray.map((party) => {
-                      const pct = totalCounted > 0 ? (party.count / totalCounted) * 100 : 0;
-                      const isWinner = phase === "certified" && winner?.code === party.code && party.code !== "PX";
-                      return (
-                        <div key={party.code}>
-                          <div className="flex justify-between items-center mb-1">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: party.color }} />
-                              <span className={`text-xs font-medium ${isWinner ? "text-slate-900" : "text-slate-700"}`}>
-                                {party.code === "PX" ? "No Vote" : `[${party.code}] ${party.name}`}
-                              </span>
-                              {isWinner && <span className="text-[9px] bg-yellow-100 text-yellow-800 border border-yellow-300 px-1.5 py-0.5 rounded font-semibold">WINNER</span>}
-                            </div>
-                            <span className="text-xs text-slate-500 font-mono">{pct.toFixed(1)}%</span>
-                          </div>
-                          <div className="h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                            <div className="h-full rounded-full transition-all duration-500 relative" style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${party.color}, ${party.lightColor})` }}>
-                              {isWinner && <div className="absolute inset-0 progress-shimmer rounded-full" />}
-                            </div>
-                          </div>
+            {/* ── TOP-RIGHT: Pie chart ── */}
+            <div className="absolute top-20 right-4 z-30 w-52">
+              <div className="glass-panel rounded-xl p-4 flex flex-col items-center" style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)" }}>
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-2 self-start">Composition</div>
+                <PieChart tallies={tallyArray} total={totalCounted} />
+                <div className="mt-2 space-y-1 w-full">
+                  {tallyArray.map((party) => {
+                    const pct = totalCounted > 0 ? (party.count / totalCounted) * 100 : 0;
+                    return (
+                      <div key={party.code} className="flex items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: party.color }} />
+                          <span className="text-[10px] text-slate-600 truncate">{party.code === "PX" ? "No Vote" : party.name}</span>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Pie chart */}
-                <div className="sm:col-span-2 glass-panel rounded-xl p-4 flex flex-col items-center">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-3 self-start">Composition</div>
-                  <PieChart tallies={tallyArray} total={totalCounted} />
-                  <div className="mt-3 space-y-1 w-full">
-                    {tallyArray.map((party) => (
-                      <div key={party.code} className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: party.color }} />
-                        <span className="text-[10px] text-slate-500 truncate">{party.code === "PX" ? "No Vote" : party.name}</span>
+                        <span className="text-[10px] text-slate-500 font-mono">{pct.toFixed(1)}%</span>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
               </div>
+            </div>
 
-              {/* Results table */}
-              <div className="glass-panel rounded-xl p-4">
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-3">Detailed Results</div>
+            {/* ── BOTTOM: Results table ── */}
+            <div className="absolute bottom-4 left-4 right-4 z-30">
+              <div className="max-w-3xl mx-auto glass-panel rounded-xl p-4" style={{ background: "rgba(255,255,255,0.88)", backdropFilter: "blur(12px)" }}>
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-2">Results</div>
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-200">
-                      <th className="text-left text-[10px] text-slate-400 uppercase tracking-wider pb-2 font-semibold">Party</th>
-                      <th className="text-right text-[10px] text-slate-400 uppercase tracking-wider pb-2 font-semibold">Votes</th>
-                      <th className="text-right text-[10px] text-slate-400 uppercase tracking-wider pb-2 font-semibold">Percentage</th>
-                      <th className="text-right text-[10px] text-slate-400 uppercase tracking-wider pb-2 font-semibold">Status</th>
+                      <th className="text-left text-[10px] text-slate-400 uppercase tracking-wider pb-1.5 font-semibold">Party</th>
+                      <th className="text-right text-[10px] text-slate-400 uppercase tracking-wider pb-1.5 font-semibold">Votes</th>
+                      <th className="text-right text-[10px] text-slate-400 uppercase tracking-wider pb-1.5 font-semibold">Percentage</th>
+                      <th className="text-right text-[10px] text-slate-400 uppercase tracking-wider pb-1.5 font-semibold">Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -987,22 +972,23 @@ export default function ElectionPage() {
                       const pct = totalCounted > 0 ? (party.count / totalCounted) * 100 : 0;
                       const isWinner = phase === "certified" && winner?.code === party.code && party.code !== "PX";
                       return (
-                        <tr key={party.code} className={`border-b border-slate-100 transition-colors ${isWinner ? "bg-blue-50" : ""}`}>
-                          <td className="py-2.5">
+                        <tr key={party.code} className={`border-b border-slate-100 transition-colors ${isWinner ? "bg-blue-50/60" : ""}`}>
+                          <td className="py-1.5">
                             <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded" style={{ backgroundColor: party.color }} />
-                              <span className="text-sm text-slate-800 font-medium">[{party.code}] {party.code === "PX" ? "No Vote" : party.name}</span>
+                              <div className="w-2.5 h-2.5 rounded" style={{ backgroundColor: party.color }} />
+                              <span className="text-xs text-slate-800 font-medium">[{party.code}] {party.code === "PX" ? "No Vote" : party.name}</span>
+                              {isWinner && <span className="text-[9px] bg-yellow-100 text-yellow-800 border border-yellow-300 px-1.5 py-0.5 rounded font-semibold">WINNER</span>}
                             </div>
                           </td>
-                          <td className="py-2.5 text-right"><span className="text-sm text-slate-800 font-mono font-bold">{party.count}</span></td>
-                          <td className="py-2.5 text-right"><span className="text-sm text-slate-600 font-mono">{pct.toFixed(2)}%</span></td>
-                          <td className="py-2.5 text-right">
+                          <td className="py-1.5 text-right"><span className="text-xs text-slate-800 font-mono font-bold">{party.count}</span></td>
+                          <td className="py-1.5 text-right"><span className="text-xs text-slate-600 font-mono">{pct.toFixed(2)}%</span></td>
+                          <td className="py-1.5 text-right">
                             {isWinner ? (
-                              <span className="text-[10px] bg-green-100 text-green-700 border border-green-200 px-2 py-0.5 rounded-full font-semibold">ELECTED</span>
+                              <span className="text-[9px] bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded-full font-semibold">ELECTED</span>
                             ) : phase === "certified" ? (
-                              <span className="text-[10px] text-slate-400">—</span>
+                              <span className="text-[9px] text-slate-400">—</span>
                             ) : (
-                              <span className="text-[10px] text-blue-600 animate-pulse">COUNTING</span>
+                              <span className="text-[9px] text-blue-600 animate-pulse">COUNTING</span>
                             )}
                           </td>
                         </tr>
@@ -1011,61 +997,45 @@ export default function ElectionPage() {
                   </tbody>
                   <tfoot>
                     <tr className="border-t border-slate-300">
-                      <td className="py-2.5 text-sm text-slate-500 font-semibold">Total</td>
-                      <td className="py-2.5 text-right text-sm text-slate-800 font-mono font-bold">{totalCounted}</td>
-                      <td className="py-2.5 text-right text-sm text-slate-600 font-mono">{totalCounted > 0 ? "100.00%" : "0.00%"}</td>
+                      <td className="py-1.5 text-xs text-slate-500 font-semibold">Total</td>
+                      <td className="py-1.5 text-right text-xs text-slate-800 font-mono font-bold">{totalCounted}</td>
+                      <td className="py-1.5 text-right text-xs text-slate-600 font-mono">{totalCounted > 0 ? "100.00%" : "0.00%"}</td>
                       <td />
                     </tr>
                   </tfoot>
                 </table>
-              </div>
 
-              {/* Certification banner */}
-              {phase === "certified" && (
-                <div className="cert-banner glass-panel rounded-xl p-5 border-green-200 bg-gradient-to-r from-green-50/80 via-white to-green-50/80">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 border border-green-200">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                        <polyline points="22 4 12 14.01 9 11.01" />
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-lg font-bold text-slate-800 mb-1">Vote Resolution Complete</div>
-                      <div className="text-sm text-green-700 font-semibold mb-2">Results Verified and Certified</div>
-                      <div className="grid grid-cols-2 gap-3 mt-3">
-                        <div className="text-[10px] text-slate-500">
-                          <div className="uppercase tracking-wider mb-0.5">Total Ballots</div>
-                          <div className="text-sm text-slate-800 font-mono font-bold">{totalCounted}</div>
+                {/* Certification banner embedded at bottom */}
+                {phase === "certified" && (
+                  <div className="mt-3 pt-3 border-t border-green-200">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 border border-green-200">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round">
+                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                          <polyline points="22 4 12 14.01 9 11.01" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-sm font-bold text-slate-800">Vote Resolution Complete — Results Certified</div>
+                        <div className="flex items-center gap-4 mt-1 text-[10px] text-slate-500">
+                          <span>Total: <span className="font-mono font-bold text-slate-700">{totalCounted}</span></span>
+                          <span>Certified: <span className="font-mono text-slate-700">{timestamp}</span></span>
+                          {winner && winner.code !== "PX" && (
+                            <span>Winner: <span className="font-bold text-slate-800">[{winner.code}] {winner.name}</span> ({((winner.count / totalCounted) * 100).toFixed(2)}%)</span>
+                          )}
                         </div>
-                        <div className="text-[10px] text-slate-500">
-                          <div className="uppercase tracking-wider mb-0.5">Certified At</div>
-                          <div className="text-sm text-slate-800 font-mono">{timestamp}</div>
-                        </div>
-                        {winner && winner.code !== "PX" && (
-                          <>
-                            <div className="text-[10px] text-slate-500">
-                              <div className="uppercase tracking-wider mb-0.5">Winning Party</div>
-                              <div className="text-sm text-slate-800 font-bold">[{winner.code}] {winner.name}</div>
-                            </div>
-                            <div className="text-[10px] text-slate-500">
-                              <div className="uppercase tracking-wider mb-0.5">Winning Votes</div>
-                              <div className="text-sm text-slate-800 font-mono font-bold">{winner.count} ({((winner.count / totalCounted) * 100).toFixed(2)}%)</div>
-                            </div>
-                          </>
-                        )}
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 mt-8 border-t border-slate-200 bg-white/60 backdrop-blur">
+      {/* Footer — hidden during full-screen counting */}
+      <footer className={`relative z-10 mt-8 border-t border-slate-200 bg-white/60 backdrop-blur ${phase === "counting" || phase === "certified" ? "hidden" : ""}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="text-[10px] text-slate-400">© 2025 ICT Election Commission — Transparent Digital Vote Resolution</div>
           <div className="flex items-center gap-1.5">
