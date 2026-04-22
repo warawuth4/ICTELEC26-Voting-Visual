@@ -1,24 +1,24 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import {useState, useEffect, useRef, useCallback} from "react";
 import * as THREE from "three";
 
 /* ═══════════════════════════════════════════════════
    TYPES
    ═══════════════════════════════════════════════════ */
 interface BallotRecord {
-  id: number;
-  vote: string;
-  partyCode: string;
-  partyName: string;
+    id: number;
+    vote: string;
+    partyCode: string;
+    partyName: string;
 }
 
 interface PartyTally {
-  code: string;
-  name: string;
-  color: string;
-  lightColor: string;
-  count: number;
+    code: string;
+    name: string;
+    color: string;
+    lightColor: string;
+    count: number;
 }
 
 type Phase = "idle" | "loading" | "parsing" | "counting" | "certified";
@@ -27,15 +27,15 @@ type Phase = "idle" | "loading" | "parsing" | "counting" | "certified";
    CONSTANTS
    ═══════════════════════════════════════════════════ */
 const CSV_FILENAME =
-  "2025 Student Association Party E-Ballot Voting (All students).csv";
+    "2026 Student Association Party E-Ballot Voting (All students)-test.csv";
 
 const PARTY_CONFIG: Record<
-  string,
-  { name: string; color: string; lightColor: string }
+    string,
+    { name: string; color: string; lightColor: string }
 > = {
-  P1: { name: "Smurfs Party", color: "#2563eb", lightColor: "#93bbfd" },
-  P2: { name: "ICT NextGen Party", color: "#ea580c", lightColor: "#fdba74" },
-  PX: { name: "No Vote (ไม่ประสงค์ลงคะแนน)", color: "#94a3b8", lightColor: "#cbd5e1" },
+    P1: {name: "Endorse (รับรอง)", color: "#2563eb", lightColor: "#93bbfd"},
+    P2: {name: "Not endorse (ไม่รับรอง)", color: "#ea580c", lightColor: "#fdba74"},
+    PX: {name: "No Vote (ไม่ประสงค์ลงคะแนน)", color: "#94a3b8", lightColor: "#cbd5e1"},
 };
 
 const PARTY_ORDER = ["P1", "P2", "PX"];
@@ -44,1006 +44,1189 @@ const PARTY_ORDER = ["P1", "P2", "PX"];
    HELPERS
    ═══════════════════════════════════════════════════ */
 function parseCSV(text: string): BallotRecord[] {
-  const lines = text.trim().split("\n");
-  const records: BallotRecord[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    const firstComma = line.indexOf(",");
-    if (firstComma === -1) continue;
-    const id = parseInt(line.substring(0, firstComma).replace(/"/g, ""), 10);
-    let voteRaw = line.substring(firstComma + 1).replace(/"/g, "").trim();
-    if (voteRaw.startsWith("- ")) voteRaw = voteRaw.substring(2);
-    const match = voteRaw.match(/\[([^\]]+)\]/);
-    const partyCode = match ? match[1] : "PX";
-    const config = PARTY_CONFIG[partyCode] || PARTY_CONFIG.PX;
-    records.push({ id, vote: voteRaw, partyCode, partyName: config.name });
-  }
-  return records;
+    const lines = text.trim().split("\n");
+    const records: BallotRecord[] = [];
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const firstComma = line.indexOf(",");
+        if (firstComma === -1) continue;
+        const id = parseInt(line.substring(0, firstComma).replace(/"/g, ""), 10);
+        let voteRaw = line.substring(firstComma + 1).replace(/"/g, "").trim();
+        if (voteRaw.startsWith("- ")) voteRaw = voteRaw.substring(2);
+        let partyCode = "PX"; // Default
+        if (voteRaw.toLowerCase().includes("not endorse")) {
+            partyCode = "P2";
+        } else if (voteRaw.toLowerCase().includes("endorse")) {
+            partyCode = "P1";
+        }
+        const config = PARTY_CONFIG[partyCode] || PARTY_CONFIG.PX;
+        records.push({id, vote: voteRaw, partyCode, partyName: config.name});
+    }
+    return records;
 }
 
 function simpleHash(text: string): string {
-  let hash = 0;
-  for (let i = 0; i < text.length; i++) {
-    hash = (hash << 5) - hash + text.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash).toString(16).toUpperCase().padStart(8, "0");
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+        hash = (hash << 5) - hash + text.charCodeAt(i);
+        hash |= 0;
+    }
+    return Math.abs(hash).toString(16).toUpperCase().padStart(8, "0");
 }
 
 function formatTimestamp(): string {
-  return new Date().toLocaleString("en-US", {
-    year: "numeric", month: "long", day: "numeric",
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
-  });
+    return new Date().toLocaleString("en-US", {
+        year: "numeric", month: "long", day: "numeric",
+        hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+    });
 }
 
 /* ═══════════════════════════════════════════════════
    THREE.JS BALLOT SCENE
    ═══════════════════════════════════════════════════ */
 interface BallotSceneProps {
-  currentBallot: BallotRecord | null;
-  onBallotLanded: () => void;
-  tallies: Record<string, PartyTally>;
-  phase: Phase;
+    currentBallot: BallotRecord | null;
+    onBallotLanded: () => void;
+    tallies: Record<string, PartyTally>;
+    phase: Phase;
+    onUnfoldComplete: () => void;
+    readyToDrop: boolean;
 }
 
 function createBallotTexture(ballot: BallotRecord): THREE.CanvasTexture {
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 700;
-  const ctx = canvas.getContext("2d")!;
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 700;
+    const ctx = canvas.getContext("2d")!;
 
-  // Paper background
-  const grad = ctx.createLinearGradient(0, 0, 512, 700);
-  grad.addColorStop(0, "#fefce8");
-  grad.addColorStop(0.5, "#fef9c3");
-  grad.addColorStop(1, "#fefce8");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 512, 700);
+    // Paper background
+    const grad = ctx.createLinearGradient(0, 0, 512, 700);
+    grad.addColorStop(0, "#fefce8");
+    grad.addColorStop(0.5, "#fef9c3");
+    grad.addColorStop(1, "#fefce8");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 512, 700);
 
-  // Subtle ruled lines
-  ctx.strokeStyle = "rgba(180, 170, 130, 0.12)";
-  ctx.lineWidth = 1;
-  for (let y = 30; y < 700; y += 28) {
+    // Subtle ruled lines
+    ctx.strokeStyle = "rgba(180, 170, 130, 0.12)";
+    ctx.lineWidth = 1;
+    for (let y = 30; y < 700; y += 28) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(512, y);
+        ctx.stroke();
+    }
+
+    // Border
+    ctx.strokeStyle = "#d4c87a";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(6, 6, 500, 688);
+
+    // Header
+    ctx.fillStyle = "#92400e";
+    ctx.font = "bold 14px 'Georgia', serif";
+    ctx.textAlign = "center";
+    ctx.fillText("OFFICIAL BALLOT", 256, 50);
+
+    ctx.fillStyle = "#a16207";
+    ctx.font = "11px 'Georgia', serif";
+    ctx.fillText("2026 Student Association Party Election", 256, 72);
+
+    ctx.fillStyle = "#b45309";
+    ctx.font = "10px monospace";
+    ctx.fillText(`Ballot #${ballot.id.toString().padStart(4, "0")}`, 256, 92);
+
+    // Divider
+    ctx.strokeStyle = "rgba(161, 98, 7, 0.2)";
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(512, y);
+    ctx.moveTo(40, 108);
+    ctx.lineTo(472, 108);
     ctx.stroke();
-  }
 
-  // Border
-  ctx.strokeStyle = "#d4c87a";
-  ctx.lineWidth = 3;
-  ctx.strokeRect(6, 6, 500, 688);
-
-  // Header
-  ctx.fillStyle = "#92400e";
-  ctx.font = "bold 14px 'Georgia', serif";
-  ctx.textAlign = "center";
-  ctx.fillText("OFFICIAL BALLOT", 256, 50);
-
-  ctx.fillStyle = "#a16207";
-  ctx.font = "11px 'Georgia', serif";
-  ctx.fillText("2025 Student Association Party Election", 256, 72);
-
-  ctx.fillStyle = "#b45309";
-  ctx.font = "10px monospace";
-  ctx.fillText(`Ballot #${ballot.id.toString().padStart(4, "0")}`, 256, 92);
-
-  // Divider
-  ctx.strokeStyle = "rgba(161, 98, 7, 0.2)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(40, 108);
-  ctx.lineTo(472, 108);
-  ctx.stroke();
-
-  // Title
-  ctx.fillStyle = "#78350f";
-  ctx.font = "bold 13px 'Georgia', serif";
-  ctx.fillText("Vote for the Student Council Party", 256, 138);
-
-  // Choices
-  const yStart = 175;
-  const rowH = 120;
-  PARTY_ORDER.forEach((code, i) => {
-    const config = PARTY_CONFIG[code];
-    const isSelected = ballot.partyCode === code;
-    const y = yStart + i * rowH;
-
-    // Row background
-    if (isSelected) {
-      ctx.fillStyle = "rgba(250, 204, 21, 0.15)";
-      ctx.fillRect(35, y - 5, 442, rowH - 15);
-    }
-
-    // Checkbox
-    ctx.strokeStyle = "#92400e";
-    ctx.lineWidth = 2.5;
-    ctx.strokeRect(55, y + 10, 40, 40);
-    ctx.fillStyle = "rgba(255,255,255,0.6)";
-    ctx.fillRect(56, y + 11, 38, 38);
-
-    // X mark if selected
-    if (isSelected) {
-      ctx.strokeStyle = "#1a1a1a";
-      ctx.lineWidth = 4;
-      ctx.lineCap = "round";
-      // Slightly imperfect X
-      ctx.beginPath();
-      ctx.moveTo(60, y + 16);
-      ctx.lineTo(90, y + 46);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(89, y + 15);
-      ctx.lineTo(61, y + 45);
-      ctx.stroke();
-      ctx.lineCap = "butt";
-    }
-
-    // Party text
+    // Title
     ctx.fillStyle = "#78350f";
-    ctx.font = "bold 16px 'Georgia', serif";
-    ctx.textAlign = "left";
-    ctx.fillText(`[${code}] ${config.name}`, 115, y + 37);
-  });
+    ctx.font = "bold 13px 'Georgia', serif";
+    ctx.fillText("Vote for the Student Council Party", 256, 138);
 
-  // Footer
-  ctx.strokeStyle = "rgba(161, 98, 7, 0.15)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(40, 560);
-  ctx.lineTo(472, 560);
-  ctx.stroke();
+    // Choices
+    const yStart = 175;
+    const rowH = 120;
+    PARTY_ORDER.forEach((code, i) => {
+        const config = PARTY_CONFIG[code];
+        const isSelected = ballot.partyCode === code;
+        const y = yStart + i * rowH;
 
-  ctx.fillStyle = "rgba(120, 53, 15, 0.4)";
-  ctx.font = "italic 10px 'Georgia', serif";
-  ctx.textAlign = "center";
-  ctx.fillText("Mark only one selection", 256, 585);
+        // Row background
+        if (isSelected) {
+            ctx.fillStyle = "rgba(250, 204, 21, 0.15)";
+            ctx.fillRect(35, y - 5, 442, rowH - 15);
+        }
 
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  return texture;
+        // Checkbox
+        ctx.strokeStyle = "#92400e";
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(55, y + 10, 40, 40);
+        ctx.fillStyle = "rgba(255,255,255,0.6)";
+        ctx.fillRect(56, y + 11, 38, 38);
+
+        // X mark if selected
+        if (isSelected) {
+            ctx.strokeStyle = "#1a1a1a";
+            ctx.lineWidth = 4;
+            ctx.lineCap = "round";
+            // Slightly imperfect X
+            ctx.beginPath();
+            ctx.moveTo(60, y + 16);
+            ctx.lineTo(90, y + 46);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(89, y + 15);
+            ctx.lineTo(61, y + 45);
+            ctx.stroke();
+            ctx.lineCap = "butt";
+        }
+
+        // Party text
+        ctx.fillStyle = "#78350f";
+        ctx.font = "bold 16px 'Georgia', serif";
+        ctx.textAlign = "left";
+        ctx.fillText(`${config.name}`, 115, y + 37);
+    });
+
+    // Footer
+    ctx.strokeStyle = "rgba(161, 98, 7, 0.15)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(40, 560);
+    ctx.lineTo(472, 560);
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(120, 53, 15, 0.4)";
+    ctx.font = "italic 10px 'Georgia', serif";
+    ctx.textAlign = "center";
+    ctx.fillText("Mark only one selection", 256, 585);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
 }
 
-function BallotScene({ currentBallot, onBallotLanded, tallies, phase }: BallotSceneProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const sceneRef = useRef<{
-    scene: THREE.Scene;
-    camera: THREE.PerspectiveCamera;
-    renderer: THREE.WebGLRenderer;
-    animationId: number;
-    ballotMesh: THREE.Group | null;
-    baskets: Record<string, THREE.Group>;
-    stackedBallots: Record<string, THREE.Mesh[]>;
-    animPhase: "none" | "unfold" | "drop" | "done";
-    animProgress: number;
-    currentTarget: string;
-    dropRandomX: number;
-    dropRandomY: number;
-  } | null>(null);
+function BallotScene({currentBallot, onBallotLanded, tallies, phase, onUnfoldComplete, readyToDrop}: BallotSceneProps) {
+    const containerRef = useRef<HTMLDivElement>(null);
 
-  // Initialize Three.js scene
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const container = containerRef.current;
-    const w = container.clientWidth;
-    const h = container.clientHeight;
+    const callbacksRef = useRef({onUnfoldComplete, readyToDrop});
+    useEffect(() => {
+        callbacksRef.current = {onUnfoldComplete, readyToDrop};
+    }, [onUnfoldComplete, readyToDrop]);
 
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf1f5f9);
+    const sceneRef = useRef<{
+        scene: THREE.Scene;
+        camera: THREE.PerspectiveCamera;
+        renderer: THREE.WebGLRenderer;
+        animationId: number;
+        ballotMesh: THREE.Group | null;
+        baskets: Record<string, THREE.Group>;
+        stackedBallots: Record<string, THREE.Mesh[]>;
+        animPhase: "none" | "unfold" | "drop" | "done";
+        animProgress: number;
+        currentTarget: string;
+        dropRandomX: number;
+        dropRandomY: number;
+    } | null>(null);
 
-    const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
-    camera.position.set(0, 5, 12);
-    camera.lookAt(0, 1, 0);
+    // Initialize Three.js scene
+    useEffect(() => {
+        if (!containerRef.current) return;
+        const container = containerRef.current;
+        const w = container.clientWidth;
+        const h = container.clientHeight;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(w, h);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
-    container.appendChild(renderer.domElement);
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf1f5f9);
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambientLight);
+        const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
+        camera.position.set(0, 5, 12);
+        camera.lookAt(0, 1, 0);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    dirLight.position.set(5, 10, 7);
-    dirLight.castShadow = true;
-    dirLight.shadow.mapSize.set(1024, 1024);
-    dirLight.shadow.camera.near = 0.5;
-    dirLight.shadow.camera.far = 50;
-    dirLight.shadow.camera.left = -10;
-    dirLight.shadow.camera.right = 10;
-    dirLight.shadow.camera.top = 10;
-    dirLight.shadow.camera.bottom = -10;
-    scene.add(dirLight);
+        const renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
+        renderer.setSize(w, h);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        container.appendChild(renderer.domElement);
 
-    const fillLight = new THREE.DirectionalLight(0xe8f0ff, 0.4);
-    fillLight.position.set(-3, 5, -3);
-    scene.add(fillLight);
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
 
-    // Floor/table surface
-    const floorGeo = new THREE.PlaneGeometry(20, 15);
-    const floorMat = new THREE.MeshStandardMaterial({
-      color: 0xe2e8f0,
-      roughness: 0.8,
-      metalness: 0.05,
-    });
-    const floor = new THREE.Mesh(floorGeo, floorMat);
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -1.5;
-    floor.receiveShadow = true;
-    scene.add(floor);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        dirLight.position.set(5, 10, 7);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.set(1024, 1024);
+        dirLight.shadow.camera.near = 0.5;
+        dirLight.shadow.camera.far = 50;
+        dirLight.shadow.camera.left = -10;
+        dirLight.shadow.camera.right = 10;
+        dirLight.shadow.camera.top = 10;
+        dirLight.shadow.camera.bottom = -10;
+        scene.add(dirLight);
 
-    // Create baskets
-    const baskets: Record<string, THREE.Group> = {};
-    const stackedBallots: Record<string, THREE.Mesh[]> = {};
-    const bPositions: Record<string, number> = { P1: -3.5, P2: 0, PX: 3.5 };
-    const basketColors: Record<string, number> = { P1: 0x2563eb, P2: 0xea580c, PX: 0x94a3b8 };
+        const fillLight = new THREE.DirectionalLight(0xe8f0ff, 0.4);
+        fillLight.position.set(-3, 5, -3);
+        scene.add(fillLight);
 
-    PARTY_ORDER.forEach((code) => {
-      const group = new THREE.Group();
-      const xPos = bPositions[code];
-      group.position.set(bPositions[code], -1.5, 2);
+        // Floor/table surface
+        const floorGeo = new THREE.PlaneGeometry(20, 15);
+        const floorMat = new THREE.MeshStandardMaterial({
+            color: 0xe2e8f0,
+            roughness: 0.8,
+            metalness: 0.05,
+        });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -1.5;
+        floor.receiveShadow = true;
+        scene.add(floor);
 
-      // Basket box (open top)
-      const boxW = 2.2, boxH = 1.0, boxD = 1.6, wallThick = 0.06;
-      const basketMat = new THREE.MeshStandardMaterial({
-        color: basketColors[code],
-        roughness: 0.4,
-        metalness: 0.15,
-        transparent: true,
-        opacity: 0.35,
-      });
+        // Create baskets
+        const baskets: Record<string, THREE.Group> = {};
+        const stackedBallots: Record<string, THREE.Mesh[]> = {};
+        const bPositions: Record<string, number> = {P1: -3.5, P2: 0, PX: 3.5};
+        const basketColors: Record<string, number> = {P1: 0x2563eb, P2: 0xea580c, PX: 0x94a3b8};
 
-      // Bottom
-      const bottom = new THREE.Mesh(new THREE.BoxGeometry(boxW, wallThick, boxD), basketMat);
-      bottom.position.y = 0;
-      bottom.receiveShadow = true;
-      group.add(bottom);
+        PARTY_ORDER.forEach((code) => {
+            const group = new THREE.Group();
+            const xPos = bPositions[code];
+            group.position.set(bPositions[code], -1.5, 2);
 
-      // Front
-      const front = new THREE.Mesh(new THREE.BoxGeometry(boxW, boxH, wallThick), basketMat);
-      front.position.set(0, boxH / 2, boxD / 2);
-      group.add(front);
+            // Basket box (open top)
+            const boxW = 2.2, boxH = 1.0, boxD = 1.6, wallThick = 0.06;
+            const basketMat = new THREE.MeshStandardMaterial({
+                color: basketColors[code],
+                roughness: 0.4,
+                metalness: 0.15,
+                transparent: true,
+                opacity: 0.35,
+            });
 
-      // Back
-      const back = new THREE.Mesh(new THREE.BoxGeometry(boxW, boxH, wallThick), basketMat);
-      back.position.set(0, boxH / 2, -boxD / 2);
-      group.add(back);
+            // Bottom
+            const bottom = new THREE.Mesh(new THREE.BoxGeometry(boxW, wallThick, boxD), basketMat);
+            bottom.position.y = 0;
+            bottom.receiveShadow = true;
+            group.add(bottom);
 
-      // Left
-      const left = new THREE.Mesh(new THREE.BoxGeometry(wallThick, boxH, boxD), basketMat);
-      left.position.set(-boxW / 2, boxH / 2, 0);
-      group.add(left);
+            // Front
+            const front = new THREE.Mesh(new THREE.BoxGeometry(boxW, boxH, wallThick), basketMat);
+            front.position.set(0, boxH / 2, boxD / 2);
+            group.add(front);
 
-      // Right
-      const right = new THREE.Mesh(new THREE.BoxGeometry(wallThick, boxH, boxD), basketMat);
-      right.position.set(boxW / 2, boxH / 2, 0);
-      group.add(right);
+            // Back
+            const back = new THREE.Mesh(new THREE.BoxGeometry(boxW, boxH, wallThick), basketMat);
+            back.position.set(0, boxH / 2, -boxD / 2);
+            group.add(back);
 
-      // Label
-      const labelCanvas = document.createElement("canvas");
-      labelCanvas.width = 256;
-      labelCanvas.height = 64;
-      const lctx = labelCanvas.getContext("2d")!;
-      lctx.fillStyle = "transparent";
-      lctx.fillRect(0, 0, 256, 64);
-      lctx.fillStyle = "#334155";
-      lctx.font = "bold 28px Arial, sans-serif";
-      lctx.textAlign = "center";
-      lctx.fillText(code === "PX" ? "No Vote" : `[${code}]`, 128, 28);
-      lctx.font = "18px Arial, sans-serif";
-      lctx.fillText(code === "PX" ? "" : PARTY_CONFIG[code].name, 128, 52);
-      const labelTex = new THREE.CanvasTexture(labelCanvas);
-      const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true });
-      const labelMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.5), labelMat);
-      labelMesh.position.set(0, -0.4, boxD / 2 + 0.15);
-      group.add(labelMesh);
+            // Left
+            const left = new THREE.Mesh(new THREE.BoxGeometry(wallThick, boxH, boxD), basketMat);
+            left.position.set(-boxW / 2, boxH / 2, 0);
+            group.add(left);
 
-      scene.add(group);
-      baskets[code] = group;
-      stackedBallots[code] = [];
-    });
+            // Right
+            const right = new THREE.Mesh(new THREE.BoxGeometry(wallThick, boxH, boxD), basketMat);
+            right.position.set(boxW / 2, boxH / 2, 0);
+            group.add(right);
 
-    const state = {
-      scene, camera, renderer,
-      animationId: 0,
-      ballotMesh: null as THREE.Group | null,
-      baskets, stackedBallots,
-      animPhase: "none" as "none" | "unfold" | "drop" | "done",
-      animProgress: 0,
-      currentTarget: "",
-      dropRandomX: 0,
-      dropRandomY: 0,
-    };
-    sceneRef.current = state;
+            // Label
+            const labelCanvas = document.createElement("canvas");
+            labelCanvas.width = 256;
+            labelCanvas.height = 64;
+            const lctx = labelCanvas.getContext("2d")!;
+            lctx.fillStyle = "transparent";
+            lctx.fillRect(0, 0, 256, 64);
+            lctx.fillStyle = "#334155";
+            lctx.font = "bold 28px Arial, sans-serif";
+            lctx.textAlign = "center";
+            lctx.fillText(code === "PX" ? "No Vote" : `[${code}]`, 128, 28);
+            lctx.font = "18px Arial, sans-serif";
+            lctx.fillText(code === "PX" ? "" : PARTY_CONFIG[code].name, 128, 52);
+            const labelTex = new THREE.CanvasTexture(labelCanvas);
+            const labelMat = new THREE.MeshBasicMaterial({map: labelTex, transparent: true});
+            const labelMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.5), labelMat);
+            labelMesh.position.set(0, -0.4, boxD / 2 + 0.15);
+            group.add(labelMesh);
 
-    // Animation loop
-    const animate = () => {
-      state.animationId = requestAnimationFrame(animate);
+            scene.add(group);
+            baskets[code] = group;
+            stackedBallots[code] = [];
+        });
 
-      // Animate ballot
-      if (state.ballotMesh && state.animPhase !== "none" && state.animPhase !== "done") {
-        state.animProgress += 0.008;
-        const mesh = state.ballotMesh;
+        const state = {
+            scene, camera, renderer,
+            animationId: 0,
+            ballotMesh: null as THREE.Group | null,
+            baskets, stackedBallots,
+            animPhase: "none" as "none" | "unfold" | "drop" | "done",
+            animProgress: 0,
+            currentTarget: "",
+            dropRandomX: 0,
+            dropRandomY: 0,
+        };
+        sceneRef.current = state;
 
-        if (state.animPhase === "unfold") {
-          const t = Math.min(state.animProgress, 1);
-          const ease = 1 - Math.pow(1 - t, 3); // ease-out cubic
+        // Animation loop
+        const animate = () => {
+            state.animationId = requestAnimationFrame(animate);
+            if (state.ballotMesh && state.animPhase !== "none" && state.animPhase !== "done") {
+                const mesh = state.ballotMesh;
 
-          // Float up gently
-          mesh.position.y = 2.5 + ease * 0.8;
-          // Gentle tilt to give 3D perspective of the fold
-          mesh.rotation.y = Math.sin(t * Math.PI) * 0.25;
-          mesh.rotation.x = -0.2 + ease * 0.05;
+                if (state.animPhase === "unfold") {
+                    state.animProgress += 0.008; // Unfold speed
+                    const t = Math.min(state.animProgress, 1);
+                    const ease = 1 - Math.pow(1 - t, 3); // ease-out cubic
 
-          // Unfold the top half pivot (children[1] is the topPivot group)
-          const topPivot = mesh.children[1] as THREE.Group;
-          if (topPivot) {
-            // Animate fold: PI (folded forward, content inside) → 0 (flat/unfolded)
-            const foldAngle = THREE.MathUtils.lerp(Math.PI, 0, ease);
-            topPivot.rotation.x = foldAngle;
-          }
+                    // Float up gently
+                    mesh.position.y = 2.5 + ease * 0.8;
+                    // Gentle tilt to give 3D perspective of the fold
+                    mesh.rotation.y = Math.sin(t * Math.PI) * 0.25;
+                    mesh.rotation.x = -0.2 + ease * 0.05;
 
-          if (t >= 1) {
-            state.animPhase = "drop";
-            state.animProgress = 0;
-            // Cache random values once for stable drop animation
-            state.dropRandomX = (Math.random() - 0.5) * 0.15;
-            state.dropRandomY = (Math.random() - 0.5) * 0.3;
-          }
-        } else if (state.animPhase === "drop") {
-          const t = Math.min(state.animProgress * 1.5, 1);
-          const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+                    // Unfold the top half-pivot (children[1] is the topPivot group)
+                    const topPivot = mesh.children[1] as THREE.Group;
+                    if (topPivot) {
+                        topPivot.rotation.x = THREE.MathUtils.lerp(Math.PI, 0, ease);
+                    }
 
-          const targetX = bPositions[state.currentTarget];
-          const targetY = -1.5 + 0.1 + (state.stackedBallots[state.currentTarget]?.length || 0) * 0.02;
-          const targetZ = 2;
+                    if (t >= 1) {
+                        // Unfold complete: transition to wait phase and notify parent
+                        state.animPhase = "wait";
+                        state.animProgress = 0;
+                        callbacksRef.current.onUnfoldComplete();
+                    }
 
-          mesh.position.x = THREE.MathUtils.lerp(0, targetX, ease);
-          mesh.position.y = THREE.MathUtils.lerp(3.3, targetY, ease * ease);
-          mesh.position.z = THREE.MathUtils.lerp(0, targetZ, ease);
-          mesh.rotation.x = THREE.MathUtils.lerp(-0.15, -Math.PI / 2 + state.dropRandomX, ease);
-          mesh.rotation.y = THREE.MathUtils.lerp(0, state.dropRandomY, ease);
+                } else if (state.animPhase === "wait") {
+                    // Gently float while waiting for the audio to finish
+                    state.animProgress += 0.02;
+                    mesh.position.y = 3.3 + Math.sin(state.animProgress) * 0.03;
 
-          // Scale down as it drops
-          const s = THREE.MathUtils.lerp(1, 0.35, ease);
-          mesh.scale.set(s, s, s);
+                    // Check if parent signaled that audio is done
+                    if (callbacksRef.current.readyToDrop) {
+                        state.animPhase = "drop";
+                        state.animProgress = 0;
+                        // Cache random values once for stable drop animation
+                        state.dropRandomX = (Math.random() - 0.5) * 0.15;
+                        state.dropRandomY = (Math.random() - 0.5) * 0.3;
+                    }
 
-          if (t >= 1) {
-            state.animPhase = "done";
-            // Add to stack
-            addToStack(state.currentTarget, mesh);
-            onBallotLanded();
-          }
+                } else if (state.animPhase === "drop") {
+                    state.animProgress += 0.012; // Drop speed
+                    const t = Math.min(state.animProgress * 1.5, 1);
+                    const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+                    const targetX = bPositions[state.currentTarget];
+                    const targetY = -1.5 + 0.1 + (state.stackedBallots[state.currentTarget]?.length || 0) * 0.02;
+
+                    mesh.position.x = THREE.MathUtils.lerp(0, targetX, ease);
+                    mesh.position.y = THREE.MathUtils.lerp(3.3, targetY, ease * ease);
+                    mesh.position.z = THREE.MathUtils.lerp(0, 2, ease);
+                    mesh.rotation.x = THREE.MathUtils.lerp(-0.15, -Math.PI / 2 + state.dropRandomX, ease);
+                    mesh.rotation.y = THREE.MathUtils.lerp(0, state.dropRandomY, ease);
+
+                    // Refold the paper slightly as it drops into the box
+                    const topPivot = mesh.children[1] as THREE.Group;
+                    if (topPivot) {
+                        topPivot.rotation.x = THREE.MathUtils.lerp(0, Math.PI / 1.5, ease);
+                    }
+
+                    const s = THREE.MathUtils.lerp(1, 0.35, ease);
+                    mesh.scale.set(s, s, s);
+
+                    if (t >= 1) {
+                        state.animPhase = "done";
+                        // Add to stack
+                        addToStack(state.currentTarget, mesh);
+                        onBallotLanded();
+                    }
+                }
+            }
+
+            renderer.render(scene, camera);
+        };
+
+
+        function addToStack(code: string, group: THREE.Group) {
+            // Remove the animated ballot group, create a small flat card in the basket
+            scene.remove(group);
+            const stackCount = state.stackedBallots[code].length;
+            const yPos = -1.5 + 0.08 + stackCount * 0.018;
+            const smallGeo = new THREE.BoxGeometry(1.6, 0.015, 1.1);
+            const smallMat = new THREE.MeshStandardMaterial({
+                color: 0xfefce8,
+                roughness: 0.7,
+            });
+            const card = new THREE.Mesh(smallGeo, smallMat);
+            card.position.set(
+                bPositions[code],
+                yPos,
+                2 + (Math.random() - 0.5) * 0.15
+            );
+            card.rotation.y = (Math.random() - 0.5) * 0.2;
+            card.castShadow = true;
+            card.receiveShadow = true;
+            scene.add(card);
+            state.stackedBallots[code].push(card);
         }
-      }
 
-      renderer.render(scene, camera);
-    };
+        animate();
 
+        // Handle resize
+        const handleResize = () => {
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        };
+        window.addEventListener("resize", handleResize);
 
+        return () => {
+            window.removeEventListener("resize", handleResize);
+            cancelAnimationFrame(state.animationId);
+            renderer.dispose();
+            if (container.contains(renderer.domElement)) {
+                container.removeChild(renderer.domElement);
+            }
+            sceneRef.current = null;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-    function addToStack(code: string, group: THREE.Group) {
-      // Remove the animated ballot group, create a small flat card in the basket
-      scene.remove(group);
-      const stackCount = state.stackedBallots[code].length;
-      const yPos = -1.5 + 0.08 + stackCount * 0.018;
-      const smallGeo = new THREE.BoxGeometry(1.6, 0.015, 1.1);
-      const smallMat = new THREE.MeshStandardMaterial({
-        color: 0xfefce8,
-        roughness: 0.7,
-      });
-      const card = new THREE.Mesh(smallGeo, smallMat);
-      card.position.set(
-        bPositions[code],
-        yPos,
-        2 + (Math.random() - 0.5) * 0.15
-      );
-      card.rotation.y = (Math.random() - 0.5) * 0.2;
-      card.castShadow = true;
-      card.receiveShadow = true;
-      scene.add(card);
-      state.stackedBallots[code].push(card);
-    }
+    // Spawn new ballot when currentBallot changes
+    useEffect(() => {
+        const state = sceneRef.current;
+        if (!state || !currentBallot) return;
 
-    animate();
+        // Remove previous ballot mesh
+        if (state.ballotMesh) {
+            state.scene.remove(state.ballotMesh);
+            state.ballotMesh = null;
+        }
 
-    // Handle resize
-    const handleResize = () => {
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
-    };
-    window.addEventListener("resize", handleResize);
+        const texture = createBallotTexture(currentBallot);
+        const ballotW = 2.3;
+        const ballotH = 3.2;
+        const halfH = ballotH / 2;
 
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      cancelAnimationFrame(state.animationId);
-      renderer.dispose();
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
-      }
-      sceneRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+        const group = new THREE.Group();
 
-  // Spawn new ballot when currentBallot changes
-  useEffect(() => {
-    const state = sceneRef.current;
-    if (!state || !currentBallot) return;
+        // ── Bottom half (visible content below fold line) ──
+        const bottomGeo = new THREE.PlaneGeometry(ballotW, halfH);
+        // Remap UVs to show bottom half of texture (v: 0 → 0.5)
+        const uvBottom = bottomGeo.attributes.uv;
+        for (let i = 0; i < uvBottom.count; i++) {
+            uvBottom.setY(i, uvBottom.getY(i) * 0.5);
+        }
+        const bottomMat = new THREE.MeshStandardMaterial({
+            map: texture,
+            roughness: 0.65,
+            metalness: 0.0,
+            side: THREE.DoubleSide,
+        });
+        const bottomHalf = new THREE.Mesh(bottomGeo, bottomMat);
+        bottomHalf.position.set(0, -halfH / 2, 0); // Center of bottom half
+        bottomHalf.castShadow = true;
+        group.add(bottomHalf);
 
-    // Remove previous ballot mesh
-    if (state.ballotMesh) {
-      state.scene.remove(state.ballotMesh);
-      state.ballotMesh = null;
-    }
+        // ── Top half pivot group (pivots at fold line y=0) ──
+        const topPivot = new THREE.Group();
+        topPivot.position.set(0, 0, 0); // Position at fold line
 
-    const texture = createBallotTexture(currentBallot);
-    const ballotW = 2.3;
-    const ballotH = 3.2;
-    const halfH = ballotH / 2;
+        // Top half front face (ballot content)
+        const topGeo = new THREE.PlaneGeometry(ballotW, halfH);
+        // Remap UVs to show top half of texture (v: 0.5 → 1.0)
+        const uvTop = topGeo.attributes.uv;
+        for (let i = 0; i < uvTop.count; i++) {
+            uvTop.setY(i, 0.5 + uvTop.getY(i) * 0.5);
+        }
+        const topMat = new THREE.MeshStandardMaterial({
+            map: texture.clone(),
+            roughness: 0.65,
+            metalness: 0.0,
+            side: THREE.FrontSide,
+        });
+        const topFront = new THREE.Mesh(topGeo, topMat);
+        topFront.position.set(0, halfH / 2, 0); // Offset up from pivot
+        topFront.castShadow = true;
+        topPivot.add(topFront);
 
-    const group = new THREE.Group();
+        // Top half back face (plain paper, visible when folded)
+        const topBackGeo = new THREE.PlaneGeometry(ballotW, halfH);
+        const topBackMat = new THREE.MeshStandardMaterial({
+            color: 0xfef3c7,
+            roughness: 0.65,
+            metalness: 0.0,
+            side: THREE.FrontSide,
+        });
+        const topBack = new THREE.Mesh(topBackGeo, topBackMat);
+        topBack.position.set(0, halfH / 2, 0);
+        topBack.rotation.y = Math.PI; // Faces opposite direction
+        topPivot.add(topBack);
 
-    // ── Bottom half (visible content below fold line) ──
-    const bottomGeo = new THREE.PlaneGeometry(ballotW, halfH);
-    // Remap UVs to show bottom half of texture (v: 0 → 0.5)
-    const uvBottom = bottomGeo.attributes.uv;
-    for (let i = 0; i < uvBottom.count; i++) {
-      uvBottom.setY(i, uvBottom.getY(i) * 0.5);
-    }
-    const bottomMat = new THREE.MeshStandardMaterial({
-      map: texture,
-      roughness: 0.65,
-      metalness: 0.0,
-      side: THREE.DoubleSide,
-    });
-    const bottomHalf = new THREE.Mesh(bottomGeo, bottomMat);
-    bottomHalf.position.set(0, -halfH / 2, 0); // Center of bottom half
-    bottomHalf.castShadow = true;
-    group.add(bottomHalf);
+        // Start fully folded: top half folded over (-PI rotation around X at fold line)
+        topPivot.rotation.x = Math.PI;
+        group.add(topPivot);
 
-    // ── Top half pivot group (pivots at fold line y=0) ──
-    const topPivot = new THREE.Group();
-    topPivot.position.set(0, 0, 0); // Position at fold line
+        // Position the ballot group
+        group.position.set(0, 2.5, 0);
 
-    // Top half front face (ballot content)
-    const topGeo = new THREE.PlaneGeometry(ballotW, halfH);
-    // Remap UVs to show top half of texture (v: 0.5 → 1.0)
-    const uvTop = topGeo.attributes.uv;
-    for (let i = 0; i < uvTop.count; i++) {
-      uvTop.setY(i, 0.5 + uvTop.getY(i) * 0.5);
-    }
-    const topMat = new THREE.MeshStandardMaterial({
-      map: texture.clone(),
-      roughness: 0.65,
-      metalness: 0.0,
-      side: THREE.FrontSide,
-    });
-    const topFront = new THREE.Mesh(topGeo, topMat);
-    topFront.position.set(0, halfH / 2, 0); // Offset up from pivot
-    topFront.castShadow = true;
-    topPivot.add(topFront);
+        state.scene.add(group);
+        state.ballotMesh = group;
+        state.animPhase = "unfold";
+        state.animProgress = 0;
+        state.currentTarget = currentBallot.partyCode;
+    }, [currentBallot]);
 
-    // Top half back face (plain paper, visible when folded)
-    const topBackGeo = new THREE.PlaneGeometry(ballotW, halfH);
-    const topBackMat = new THREE.MeshStandardMaterial({
-      color: 0xfef3c7,
-      roughness: 0.65,
-      metalness: 0.0,
-      side: THREE.FrontSide,
-    });
-    const topBack = new THREE.Mesh(topBackGeo, topBackMat);
-    topBack.position.set(0, halfH / 2, 0);
-    topBack.rotation.y = Math.PI; // Faces opposite direction
-    topPivot.add(topBack);
-
-    // Start fully folded: top half folded over (-PI rotation around X at fold line)
-    topPivot.rotation.x = Math.PI;
-    group.add(topPivot);
-
-    // Position the ballot group
-    group.position.set(0, 2.5, 0);
-
-    state.scene.add(group);
-    state.ballotMesh = group;
-    state.animPhase = "unfold";
-    state.animProgress = 0;
-    state.currentTarget = currentBallot.partyCode;
-  }, [currentBallot]);
-
-  return (
-    <div
-      ref={containerRef}
-      className="three-canvas-container w-full h-full overflow-hidden"
-    />
-  );
+    return (
+        <div
+            ref={containerRef}
+            className="three-canvas-container w-full h-full overflow-hidden"
+        />
+    );
 }
 
 /* ═══════════════════════════════════════════════════
    PIE CHART (SVG)
    ═══════════════════════════════════════════════════ */
-function PieChart({ tallies, total }: { tallies: PartyTally[]; total: number }) {
-  const radius = 60;
-  const circumference = 2 * Math.PI * radius;
-  let cumulativeOffset = 0;
+function PieChart({tallies, total}: { tallies: PartyTally[]; total: number }) {
+    const radius = 60;
+    const circumference = 2 * Math.PI * radius;
+    let cumulativeOffset = 0;
 
-  if (total === 0) {
-    return (
-      <svg width="160" height="160" viewBox="0 0 160 160">
-        <circle cx="80" cy="80" r={radius} fill="none" stroke="#e2e8f0" strokeWidth="30" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg width="160" height="160" viewBox="0 0 160 160">
-      {tallies.map((party) => {
-        const fraction = party.count / total;
-        const dashLength = fraction * circumference;
-        const dashGap = circumference - dashLength;
-        const offset = cumulativeOffset;
-        cumulativeOffset += dashLength;
+    if (total === 0) {
         return (
-          <circle
-            key={party.code}
-            cx="80" cy="80" r={radius}
-            fill="none" stroke={party.color} strokeWidth="30"
-            strokeDasharray={`${dashLength} ${dashGap}`}
-            strokeDashoffset={-offset}
-            style={{
-              transition: "stroke-dasharray 0.4s ease, stroke-dashoffset 0.4s ease",
-              transform: "rotate(-90deg)",
-              transformOrigin: "80px 80px",
-            }}
-          />
+            <svg width="160" height="160" viewBox="0 0 160 160">
+                <circle cx="80" cy="80" r={radius} fill="none" stroke="#e2e8f0" strokeWidth="30"/>
+            </svg>
         );
-      })}
-      <text x="80" y="76" textAnchor="middle" fill="#1e293b" fontSize="18" fontWeight="bold">{total}</text>
-      <text x="80" y="94" textAnchor="middle" fill="#94a3b8" fontSize="9">TOTAL</text>
-    </svg>
-  );
+    }
+
+    return (
+        <svg width="160" height="160" viewBox="0 0 160 160">
+            {tallies.map((party) => {
+                const fraction = party.count / total;
+                const dashLength = fraction * circumference;
+                const dashGap = circumference - dashLength;
+                const offset = cumulativeOffset;
+                cumulativeOffset += dashLength;
+                return (
+                    <circle
+                        key={party.code}
+                        cx="80" cy="80" r={radius}
+                        fill="none" stroke={party.color} strokeWidth="30"
+                        strokeDasharray={`${dashLength} ${dashGap}`}
+                        strokeDashoffset={-offset}
+                        style={{
+                            transition: "stroke-dasharray 0.4s ease, stroke-dashoffset 0.4s ease",
+                            transform: "rotate(-90deg)",
+                            transformOrigin: "80px 80px",
+                        }}
+                    />
+                );
+            })}
+            <text x="80" y="76" textAnchor="middle" fill="#1e293b" fontSize="18" fontWeight="bold">{total}</text>
+            <text x="80" y="94" textAnchor="middle" fill="#94a3b8" fontSize="9">TOTAL</text>
+        </svg>
+    );
 }
 
 /* ═══════════════════════════════════════════════════
    INFO ROW
    ═══════════════════════════════════════════════════ */
-function InfoRow({ label, value, icon, verified }: { label: string; value: string; icon: string; verified?: boolean }) {
-  return (
-    <div className="flex items-center justify-between py-1.5 border-b border-slate-200 last:border-0">
-      <div className="flex items-center gap-2">
-        <span className="text-sm">{icon}</span>
-        <span className="text-xs text-slate-500">{label}</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <span className={`text-xs font-mono ${verified ? "text-green-600" : "text-slate-800"}`}>{value}</span>
-        {verified && (
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <circle cx="6" cy="6" r="5" fill="#22c55e" fillOpacity="0.2" />
-            <polyline points="3.5 6 5.5 8 8.5 4" stroke="#22c55e" strokeWidth="1.5" fill="none" />
-          </svg>
-        )}
-      </div>
-    </div>
-  );
+function InfoRow({label, value, icon, verified}: {
+    label: string;
+    value: string;
+    icon: string;
+    verified?: boolean
+}) {
+    return (
+        <div className="flex items-center justify-between py-1.5 border-b border-slate-200 last:border-0">
+            <div className="flex items-center gap-2">
+                <span className="text-sm">{icon}</span>
+                <span className="text-xs text-slate-500">{label}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+                    <span
+                        className={`text-xs font-mono ${verified ? "text-green-600" : "text-slate-800"}`}>{value}</span>
+                {verified && (
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <circle cx="6" cy="6" r="5" fill="#22c55e" fillOpacity="0.2"/>
+                        <polyline points="3.5 6 5.5 8 8.5 4" stroke="#22c55e" strokeWidth="1.5" fill="none"/>
+                    </svg>
+                )}
+            </div>
+        </div>
+    );
 }
 
 /* ═══════════════════════════════════════════════════
    MAIN PAGE COMPONENT
    ═══════════════════════════════════════════════════ */
 export default function ElectionPage() {
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [ballots, setBallots] = useState<BallotRecord[]>([]);
-  const [csvHash, setCsvHash] = useState("");
-  const [parseProgress, setParseProgress] = useState(0);
-  const [countedIndex, setCountedIndex] = useState(0);
-  const [tallies, setTallies] = useState<Record<string, PartyTally>>({});
-  const [currentBallot, setCurrentBallot] = useState<BallotRecord | null>(null);
-  const [timestamp, setTimestamp] = useState("");
-  const countingRef = useRef(false);
-  const ballotLandedRef = useRef(false);
-  const indexRef = useRef(0);
+    const [phase, setPhase] = useState<Phase>("idle");
+    const [ballots, setBallots] = useState<BallotRecord[]>([]);
+    const [csvHash, setCsvHash] = useState("");
+    const [parseProgress, setParseProgress] = useState(0);
+    const [countedIndex, setCountedIndex] = useState(0);
+    const [tallies, setTallies] = useState<Record<string, PartyTally>>({});
+    const [currentBallot, setCurrentBallot] = useState<BallotRecord | null>(null);
+    const [timestamp, setTimestamp] = useState("");
+    const [readyToDrop, setReadyToDrop] = useState(false);
+    const countingRef = useRef(false);
+    const ballotLandedRef = useRef(false);
+    const indexRef = useRef(0);
 
-  // Initialize tallies
-  useEffect(() => {
-    const initial: Record<string, PartyTally> = {};
-    for (const code of PARTY_ORDER) {
-      const config = PARTY_CONFIG[code];
-      initial[code] = { code, name: config.name, color: config.color, lightColor: config.lightColor, count: 0 };
-    }
-    setTallies(initial);
-  }, []);
+    // Triggered when the 3D ballot finishes unfolding
+    const handleUnfoldComplete = useCallback(() => {
+        if (!currentBallot) return;
 
-  // Start automatic flow
-  useEffect(() => {
-    if (phase === "idle") {
-      const timer = setTimeout(() => setPhase("loading"), 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [phase]);
+        const sound = audioRefs.current[currentBallot.partyCode];
+        if (sound) {
+            sound.currentTime = 0;
 
-  // CSV Loading
-  useEffect(() => {
-    if (phase !== "loading") return;
-    const loadCSV = async () => {
-      try {
-        const response = await fetch(`/${CSV_FILENAME}`);
-        const text = await response.text();
-        setCsvHash(simpleHash(text));
-        setPhase("parsing");
-        const steps = 20;
-        for (let i = 0; i <= steps; i++) {
-          await new Promise((r) => setTimeout(r, 80));
-          setParseProgress(Math.round((i / steps) * 100));
+            sound.onended = () => {
+                setReadyToDrop(true);
+                sound.onended = null; // cleanup
+            };
+
+            sound.play().catch((err) => {
+                console.warn("Audio skipped/blocked:", err);
+                setReadyToDrop(true);
+            });
+        } else {
+            setReadyToDrop(true);
         }
-        const records = parseCSV(text);
-        setBallots(records);
-        await new Promise((r) => setTimeout(r, 800));
-        setPhase("counting");
-      } catch (err) {
-        console.error("Failed to load CSV:", err);
-      }
-    };
-    loadCSV();
-  }, [phase]);
+    }, [currentBallot]);
 
-  // Handle ballot landed callback
-  const handleBallotLanded = useCallback(() => {
-    ballotLandedRef.current = true;
-  }, []);
+    // Read sound
+    const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({
+        P1: typeof Audio !== "undefined" ? new Audio("/endorse.mp3") : null,
+        P2: typeof Audio !== "undefined" ? new Audio("/not-endorse.mp3") : null,
+        PX: typeof Audio !== "undefined" ? new Audio("/no-vote.mp3") : null,
+    });
 
-  // Counting: show next ballot when previous lands
-  useEffect(() => {
-    if (phase !== "counting" || ballots.length === 0) return;
-    countingRef.current = true;
-    indexRef.current = 0;
-    ballotLandedRef.current = true; // Start first one immediately
-
-    const interval = setInterval(() => {
-      if (!countingRef.current) return;
-
-      if (ballotLandedRef.current) {
-        const idx = indexRef.current;
-
-        if (idx > 0) {
-          // Tally the previous ballot
-          const prevBallot = ballots[idx - 1];
-          setTallies((prev) => {
-            const next = { ...prev };
-            const code = prevBallot.partyCode;
-            if (next[code]) {
-              next[code] = { ...next[code], count: next[code].count + 1 };
+    const handleStartSession = () => {
+        // 1. Silent play/pause to unlock audio engine in strict browsers (like Safari)
+        Object.values(audioRefs.current).forEach(sound => {
+            if (sound) {
+                sound.volume = 0; // temporarily mute
+                sound.play().then(() => {
+                    sound.pause();
+                    sound.currentTime = 0;
+                    sound.volume = 1; // restore volume for actual counting
+                }).catch(() => {
+                }); // ignore catch if browser is weird
             }
-            return next;
-          });
-          setCountedIndex(idx);
-        }
+        });
 
-        if (idx >= ballots.length) {
-          // All done
-          setCurrentBallot(null);
-          setTimestamp(formatTimestamp());
-          setTimeout(() => setPhase("certified"), 1200);
-          countingRef.current = false;
-          clearInterval(interval);
-          return;
-        }
-
-        // Show next ballot
-        ballotLandedRef.current = false;
-        setCurrentBallot(ballots[idx]);
-        indexRef.current = idx + 1;
-      }
-    }, 100);
-
-    return () => {
-      clearInterval(interval);
-      countingRef.current = false;
+        // 2. Start the loading phase
+        setPhase("loading");
     };
-  }, [phase, ballots]);
 
-  // Derived data
-  const tallyArray = PARTY_ORDER.map((code) => tallies[code]).filter(Boolean);
-  const totalCounted = tallyArray.reduce((sum, t) => sum + t.count, 0);
-  const winner = phase === "certified"
-    ? tallyArray.reduce((a, b) => (a.count > b.count ? a : b))
-    : null;
+    // Initialize tallies
+    useEffect(() => {
+        const initial: Record<string, PartyTally> = {};
+        for (const code of PARTY_ORDER) {
+            const config = PARTY_CONFIG[code];
+            initial[code] = {code, name: config.name, color: config.color, lightColor: config.lightColor, count: 0};
+        }
+        setTallies(initial);
+    }, []);
 
-  const statusSteps = [
-    { label: "Voting Closed", done: phase !== "idle" },
-    { label: "Counting in Progress", done: phase === "certified", active: phase === "counting" },
-    { label: "Results Certified", done: phase === "certified" },
-  ];
+    // Start automatic flow
+    // useEffect(() => {
+    //     if (phase === "idle") {
+    //         const timer = setTimeout(() => setPhase("loading"), 1500);
+    //         return () => clearTimeout(timer);
+    //     }
+    // }, [phase]);
 
-  return (
-    <div className="min-h-screen bg-[#f1f5f9] relative">
-      {/* Top header bar — hidden during full-screen counting */}
-      <header className={`relative z-10 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm ${phase === "counting" || phase === "certified" ? "hidden" : ""}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-md">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                <polyline points="22 4 12 14.01 9 11.01" />
-              </svg>
-            </div>
-            <div>
-              <div className="text-sm font-bold text-slate-800 tracking-wide">Official Vote Resolution Session</div>
-              <div className="text-[10px] text-slate-500 tracking-wider uppercase">2025 ICT Student Association Party Election</div>
-            </div>
-          </div>
+    // CSV Loading
+    useEffect(() => {
+        if (phase !== "loading") return;
+        const loadCSV = async () => {
+            try {
+                const response = await fetch(`/${CSV_FILENAME}`);
+                const text = await response.text();
+                setCsvHash(simpleHash(text));
+                setPhase("parsing");
+                const steps = 20;
+                for (let i = 0; i <= steps; i++) {
+                    await new Promise((r) => setTimeout(r, 80));
+                    setParseProgress(Math.round((i / steps) * 100));
+                }
+                const records = parseCSV(text);
+                setBallots(records);
+                await new Promise((r) => setTimeout(r, 800));
+                setPhase("counting");
+            } catch (err) {
+                console.error("Failed to load CSV:", err);
+            }
+        };
+        loadCSV();
+    }, [phase]);
 
-          {/* Status steps */}
-          <div className="hidden sm:flex items-center gap-1">
-            {statusSteps.map((step, i) => (
-              <div key={i} className="flex items-center gap-1">
-                {i > 0 && <div className={`w-6 h-px ${step.done ? "bg-green-500" : "bg-slate-300"}`} />}
-                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all duration-500 ${step.done ? "bg-green-50 text-green-700 border border-green-200"
-                  : step.active ? "bg-blue-50 text-blue-700 border border-blue-200"
-                    : "bg-slate-50 text-slate-400 border border-slate-200"
-                  }`}>
-                  {step.done ? (
-                    <svg width="10" height="10" viewBox="0 0 10 10"><path d="M8.5 2.5L4 7.5L1.5 5" stroke="currentColor" strokeWidth="1.5" fill="none" /></svg>
-                  ) : step.active ? (
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                  ) : (
-                    <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                  )}
-                  {step.label}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </header>
+    // Handle ballot landed callback
+    const handleBallotLanded = useCallback(() => {
+        ballotLandedRef.current = true;
+    }, []);
 
-      {/* Main content */}
-      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        {/* ─── IDLE ─── */}
-        {phase === "idle" && (
-          <div className="flex flex-col items-center justify-center py-32" style={{ animation: "fadeIn 1s ease-out" }}>
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center mb-6 shadow-lg">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                <polyline points="22 4 12 14.01 9 11.01" />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold text-slate-800 mb-2">Vote Resolution Session</h1>
-            <p className="text-slate-500 text-sm">Initializing secure ballot processing...</p>
-            <div className="mt-8 flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-              <span className="text-xs text-slate-400">Preparing counting environment</span>
-            </div>
-          </div>
-        )}
+    // Counting: show next ballot when previous lands
+    useEffect(() => {
+        if (phase !== "counting" || ballots.length === 0) return;
+        countingRef.current = true;
+        indexRef.current = 0;
+        ballotLandedRef.current = true;
 
-        {/* ─── LOADING / PARSING ─── */}
-        {(phase === "loading" || phase === "parsing") && (
-          <div className="max-w-xl mx-auto py-20" style={{ animation: "fadeInUp 0.6s ease-out" }}>
-            <div className="glass-panel rounded-xl p-6 space-y-5">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center border border-blue-100">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="text-sm font-semibold text-slate-800">CSV Data Ingestion</div>
-                  <div className="text-[10px] text-slate-500">Secure ballot file processing</div>
-                </div>
-              </div>
+        const interval = setInterval(() => {
+            if (!countingRef.current) return;
 
-              <div className="space-y-2.5">
-                <InfoRow label="Input Source" value="Finalized Ballot CSV File" icon="📄" />
-                <InfoRow label="Records Loaded" value={ballots.length > 0 ? ballots.length.toString() : phase === "parsing" ? "Processing..." : "Loading..."} icon="📊" />
-                {csvHash && <InfoRow label="Ballot Hash" value={`SHA-${csvHash}`} icon="🔐" verified />}
-              </div>
+            if (ballotLandedRef.current) {
+                const idx = indexRef.current;
 
-              {phase === "parsing" && (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-[10px]">
-                    <span className="text-slate-500">Resolving Votes from CSV</span>
-                    <span className="text-blue-600 font-mono">{parseProgress}%</span>
-                  </div>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                    <div className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-200 relative" style={{ width: `${parseProgress}%` }}>
-                      <div className="absolute inset-0 progress-shimmer rounded-full" />
-                    </div>
-                  </div>
-                </div>
-              )}
+                if (idx > 0) {
+                    // Tally the previous ballot
+                    const prevBallot = ballots[idx - 1];
+                    setTallies((prev) => {
+                        const next = {...prev};
+                        const code = prevBallot.partyCode;
+                        if (next[code]) {
+                            next[code] = {...next[code], count: next[code].count + 1};
+                        }
+                        return next;
+                    });
+                    setCountedIndex(idx);
+                }
 
-              {csvHash && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 border border-green-200" style={{ animation: "fadeIn 0.5s ease-out" }}>
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <circle cx="7" cy="7" r="6" fill="none" stroke="#16a34a" strokeWidth="1.5" />
-                    <polyline points="4.5 7 6.5 9 9.5 5" stroke="#16a34a" strokeWidth="1.5" fill="none" />
-                  </svg>
-                  <span className="text-[11px] text-green-700 font-medium">Ballot Integrity Hash Verified</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+                if (idx >= ballots.length) {
+                    // All done
+                    setCurrentBallot(null);
+                    setTimestamp(formatTimestamp());
+                    setTimeout(() => setPhase("certified"), 1200);
+                    countingRef.current = false;
+                    clearInterval(interval);
+                    return;
+                }
 
-        {/* ─── COUNTING / CERTIFIED ─── */}
-        {(phase === "counting" || phase === "certified") && (
-          <div className="fixed inset-0 z-20" style={{ animation: "fadeInUp 0.6s ease-out" }}>
-            {/* Full-screen 3D scene (background layer) */}
-            <div className="absolute inset-0">
-              <BallotScene
-                currentBallot={currentBallot}
-                onBallotLanded={handleBallotLanded}
-                tallies={tallies}
-                phase={phase}
-              />
-            </div>
+                // Show next ballot
+                ballotLandedRef.current = false;
 
-            {/* ── TOP: Progress bar ── */}
-            <div className="absolute top-4 left-4 right-4 z-30">
-              <div className="max-w-xl mx-auto glass-panel rounded-xl p-3 flex items-center gap-4" style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)" }}>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                  <span className="text-[11px] text-slate-500 whitespace-nowrap">Ballots Processed</span>
-                </div>
-                <div className="flex-1">
-                  <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                    <div
-                      className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-300 relative"
-                      style={{ width: `${ballots.length > 0 ? (countedIndex / ballots.length) * 100 : 0}%` }}
-                    >
-                      <div className="absolute inset-0 progress-shimmer rounded-full" />
-                    </div>
-                  </div>
-                </div>
-                <div className="text-sm font-bold text-slate-800 font-mono flex-shrink-0">
-                  {countedIndex} <span className="text-slate-400 text-xs font-normal">/ {ballots.length}</span>
-                </div>
-              </div>
+                // --- ADD THIS RESET ---
+                setReadyToDrop(false);
 
-              {/* Current ballot indicator */}
-              {currentBallot && phase === "counting" && (
-                <div className="max-w-xs mx-auto mt-2">
-                  <div className="glass-panel rounded-lg px-3 py-1.5 flex items-center gap-2 justify-center" style={{ background: "rgba(255,255,255,0.75)", backdropFilter: "blur(8px)" }}>
-                    <div
-                      className="w-2.5 h-2.5 rounded-full"
-                      style={{ backgroundColor: PARTY_CONFIG[currentBallot.partyCode]?.color || "#94a3b8" }}
-                    />
-                    <div className="text-[11px] text-slate-600">
-                      <span className="font-mono text-slate-400">#{currentBallot.id.toString().padStart(4, "0")}</span>
-                      {" → "}
-                      <span className="font-semibold text-slate-800">
-                        [{currentBallot.partyCode}] {currentBallot.partyName}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+                setCurrentBallot(ballots[idx]);
+                indexRef.current = idx + 1;
+            }
+        }, 100);
 
-            {/* ── TOP-RIGHT: Pie chart ── */}
-            <div className="absolute top-20 right-4 z-30 w-52">
-              <div className="glass-panel rounded-xl p-4 flex flex-col items-center" style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)" }}>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-2 self-start">Composition</div>
-                <PieChart tallies={tallyArray} total={totalCounted} />
-                <div className="mt-2 space-y-1 w-full">
-                  {tallyArray.map((party) => {
-                    const pct = totalCounted > 0 ? (party.count / totalCounted) * 100 : 0;
-                    return (
-                      <div key={party.code} className="flex items-center justify-between gap-1.5">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: party.color }} />
-                          <span className="text-[10px] text-slate-600 truncate">{party.code === "PX" ? "No Vote" : party.name}</span>
-                        </div>
-                        <span className="text-[10px] text-slate-500 font-mono">{pct.toFixed(1)}%</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+        return () => {
+            clearInterval(interval);
+            countingRef.current = false;
+        };
+    }, [phase, ballots]);
 
-            {/* ── BOTTOM: Results table ── */}
-            <div className="absolute bottom-4 left-4 right-4 z-30">
-              <div className="max-w-3xl mx-auto glass-panel rounded-xl p-4" style={{ background: "rgba(255,255,255,0.88)", backdropFilter: "blur(12px)" }}>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-2">Results</div>
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-slate-200">
-                      <th className="text-left text-[10px] text-slate-400 uppercase tracking-wider pb-1.5 font-semibold">Party</th>
-                      <th className="text-right text-[10px] text-slate-400 uppercase tracking-wider pb-1.5 font-semibold">Votes</th>
-                      <th className="text-right text-[10px] text-slate-400 uppercase tracking-wider pb-1.5 font-semibold">Percentage</th>
-                      <th className="text-right text-[10px] text-slate-400 uppercase tracking-wider pb-1.5 font-semibold">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tallyArray.map((party) => {
-                      const pct = totalCounted > 0 ? (party.count / totalCounted) * 100 : 0;
-                      const isWinner = phase === "certified" && winner?.code === party.code && party.code !== "PX";
-                      return (
-                        <tr key={party.code} className={`border-b border-slate-100 transition-colors ${isWinner ? "bg-blue-50/60" : ""}`}>
-                          <td className="py-1.5">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2.5 h-2.5 rounded" style={{ backgroundColor: party.color }} />
-                              <span className="text-xs text-slate-800 font-medium">[{party.code}] {party.code === "PX" ? "No Vote" : party.name}</span>
-                              {isWinner && <span className="text-[9px] bg-yellow-100 text-yellow-800 border border-yellow-300 px-1.5 py-0.5 rounded font-semibold">WINNER</span>}
-                            </div>
-                          </td>
-                          <td className="py-1.5 text-right"><span className="text-xs text-slate-800 font-mono font-bold">{party.count}</span></td>
-                          <td className="py-1.5 text-right"><span className="text-xs text-slate-600 font-mono">{pct.toFixed(2)}%</span></td>
-                          <td className="py-1.5 text-right">
-                            {isWinner ? (
-                              <span className="text-[9px] bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded-full font-semibold">ELECTED</span>
-                            ) : phase === "certified" ? (
-                              <span className="text-[9px] text-slate-400">—</span>
-                            ) : (
-                              <span className="text-[9px] text-blue-600 animate-pulse">COUNTING</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t border-slate-300">
-                      <td className="py-1.5 text-xs text-slate-500 font-semibold">Total</td>
-                      <td className="py-1.5 text-right text-xs text-slate-800 font-mono font-bold">{totalCounted}</td>
-                      <td className="py-1.5 text-right text-xs text-slate-600 font-mono">{totalCounted > 0 ? "100.00%" : "0.00%"}</td>
-                      <td />
-                    </tr>
-                  </tfoot>
-                </table>
+    // Derived data
+    const tallyArray = PARTY_ORDER.map((code) => tallies[code]).filter(Boolean);
+    const totalCounted = tallyArray.reduce((sum, t) => sum + t.count, 0);
+    const winner = phase === "certified"
+        ? tallyArray.reduce((a, b) => (a.count > b.count ? a : b))
+        : null;
 
-                {/* Certification banner embedded at bottom */}
-                {phase === "certified" && (
-                  <div className="mt-3 pt-3 border-t border-green-200">
+    const statusSteps = [
+        {label: "Voting Closed", done: phase !== "idle"},
+        {label: "Counting in Progress", done: phase === "certified", active: phase === "counting"},
+        {label: "Results Certified", done: phase === "certified"},
+    ];
+
+    return (
+        <div className="min-h-screen bg-[#f1f5f9] relative">
+            {/* Top header bar — hidden during full-screen counting */}
+            <header
+                className={`relative z-10 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm ${phase === "counting" || phase === "certified" ? "hidden" : ""}`}>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 border border-green-200">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round">
-                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                          <polyline points="22 4 12 14.01 9 11.01" />
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-sm font-bold text-slate-800">Vote Resolution Complete — Results Certified</div>
-                        <div className="flex items-center gap-4 mt-1 text-[10px] text-slate-500">
-                          <span>Total: <span className="font-mono font-bold text-slate-700">{totalCounted}</span></span>
-                          <span>Certified: <span className="font-mono text-slate-700">{timestamp}</span></span>
-                          {winner && winner.code !== "PX" && (
-                            <span>Winner: <span className="font-bold text-slate-800">[{winner.code}] {winner.name}</span> ({((winner.count / totalCounted) * 100).toFixed(2)}%)</span>
-                          )}
+                        <div
+                            className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-md">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white"
+                                 strokeWidth="2"
+                                 strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                <polyline points="22 4 12 14.01 9 11.01"/>
+                            </svg>
                         </div>
-                      </div>
+                        <div>
+                            <div className="text-sm font-bold text-slate-800 tracking-wide">Official Vote Resolution
+                                Session
+                            </div>
+                            <div className="text-[10px] text-slate-500 tracking-wider uppercase">2026 ICT Student
+                                Association Party Election
+                            </div>
+                        </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
 
-      {/* Footer — hidden during full-screen counting */}
-      <footer className={`relative z-10 mt-8 border-t border-slate-200 bg-white/60 backdrop-blur ${phase === "counting" || phase === "certified" ? "hidden" : ""}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <div className="text-[10px] text-slate-400">© 2025 ICT Election Commission — Transparent Digital Vote Resolution</div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            <span className="text-[10px] text-slate-400">Secure Session</span>
-          </div>
+                    {/* Status steps */}
+                    <div className="hidden sm:flex items-center gap-1">
+                        {statusSteps.map((step, i) => (
+                            <div key={i} className="flex items-center gap-1">
+                                {i > 0 &&
+                                    <div className={`w-6 h-px ${step.done ? "bg-green-500" : "bg-slate-300"}`}/>}
+                                <div
+                                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all duration-500 ${step.done ? "bg-green-50 text-green-700 border border-green-200"
+                                        : step.active ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                            : "bg-slate-50 text-slate-400 border border-slate-200"
+                                    }`}>
+                                    {step.done ? (
+                                        <svg width="10" height="10" viewBox="0 0 10 10">
+                                            <path d="M8.5 2.5L4 7.5L1.5 5" stroke="currentColor" strokeWidth="1.5"
+                                                  fill="none"/>
+                                        </svg>
+                                    ) : step.active ? (
+                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"/>
+                                    ) : (
+                                        <div className="w-1.5 h-1.5 rounded-full bg-slate-400"/>
+                                    )}
+                                    {step.label}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </header>
+
+            {/* Main content */}
+            <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-6">
+                {/* ─── IDLE ─── */}
+                {phase === "idle" && (
+                    <div className="flex flex-col items-center justify-center py-32"
+                         style={{animation: "fadeIn 1s ease-out"}}>
+                        <div
+                            className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center mb-6 shadow-lg">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white"
+                                 strokeWidth="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                <polyline points="22 4 12 14.01 9 11.01"/>
+                            </svg>
+                        </div>
+                        <h1 className="text-2xl font-bold text-slate-800 mb-2">Vote Resolution Session</h1>
+                        <p className="text-slate-500 text-sm mb-8">Secure environment ready for tally
+                            processing.</p>
+
+                        <button
+                            onClick={handleStartSession}
+                            className="group relative flex items-center gap-3 px-8 py-3.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white rounded-full font-semibold shadow-lg shadow-blue-500/30 transition-all active:scale-95 overflow-hidden"
+                        >
+                            {/* Shine effect */}
+                            <div
+                                className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12"/>
+
+                            <span>Start Counting Process</span>
+                            <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none"
+                                 viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                            </svg>
+                        </button>
+                    </div>
+                )}
+
+                {/* ─── LOADING / PARSING ─── */}
+                {(phase === "loading" || phase === "parsing") && (
+                    <div className="max-w-xl mx-auto py-20" style={{animation: "fadeInUp 0.6s ease-out"}}>
+                        <div className="glass-panel rounded-xl p-6 space-y-5">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div
+                                    className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center border border-blue-100">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb"
+                                         strokeWidth="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14 2 14 8 20 8"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div className="text-sm font-semibold text-slate-800">CSV Data Ingestion</div>
+                                    <div className="text-[10px] text-slate-500">Secure ballot file processing</div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2.5">
+                                <InfoRow label="Input Source" value="Finalized Ballot CSV File" icon="📄"/>
+                                <InfoRow label="Records Loaded"
+                                         value={ballots.length > 0 ? ballots.length.toString() : phase === "parsing" ? "Processing..." : "Loading..."}
+                                         icon="📊"/>
+                                {csvHash &&
+                                    <InfoRow label="Ballot Hash" value={`SHA-${csvHash}`} icon="🔐" verified/>}
+                            </div>
+
+                            {phase === "parsing" && (
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-[10px]">
+                                        <span className="text-slate-500">Resolving Votes from CSV</span>
+                                        <span className="text-blue-600 font-mono">{parseProgress}%</span>
+                                    </div>
+                                    <div
+                                        className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                                        <div
+                                            className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-200 relative"
+                                            style={{width: `${parseProgress}%`}}>
+                                            <div className="absolute inset-0 progress-shimmer rounded-full"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {csvHash && (
+                                <div
+                                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 border border-green-200"
+                                    style={{animation: "fadeIn 0.5s ease-out"}}>
+                                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                        <circle cx="7" cy="7" r="6" fill="none" stroke="#16a34a" strokeWidth="1.5"/>
+                                        <polyline points="4.5 7 6.5 9 9.5 5" stroke="#16a34a" strokeWidth="1.5"
+                                                  fill="none"/>
+                                    </svg>
+                                    <span className="text-[11px] text-green-700 font-medium">Ballot Integrity Hash Verified</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* ─── COUNTING / CERTIFIED ─── */}
+                {(phase === "counting" || phase === "certified") && (
+                    <div className="fixed inset-0 z-20" style={{animation: "fadeInUp 0.6s ease-out"}}>
+                        {/* Full-screen 3D scene (background layer) */}
+                        <div className="absolute inset-0">
+                            <BallotScene
+                                currentBallot={currentBallot}
+                                onBallotLanded={handleBallotLanded}
+                                tallies={tallies}
+                                phase={phase}
+                                onUnfoldComplete={handleUnfoldComplete}
+                                readyToDrop={readyToDrop}
+                            />
+                        </div>
+
+                        {/* ── TOP: Progress bar ── */}
+                        <div className="absolute top-4 left-4 right-4 z-30">
+                            <div className="max-w-xl mx-auto glass-panel rounded-xl p-3 flex items-center gap-4"
+                                 style={{background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)"}}>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"/>
+                                    <span
+                                        className="text-[11px] text-slate-500 whitespace-nowrap">Ballots Processed</span>
+                                </div>
+                                <div className="flex-1">
+                                    <div
+                                        className="h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                                        <div
+                                            className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-300 relative"
+                                            style={{width: `${ballots.length > 0 ? (countedIndex / ballots.length) * 100 : 0}%`}}
+                                        >
+                                            <div className="absolute inset-0 progress-shimmer rounded-full"/>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="text-sm font-bold text-slate-800 font-mono flex-shrink-0">
+                                    {countedIndex} <span
+                                    className="text-slate-400 text-xs font-normal">/ {ballots.length}</span>
+                                </div>
+                            </div>
+
+                            {/* Current ballot indicator */}
+                            {currentBallot && phase === "counting" && (
+                                <div className="max-w-xs mx-auto mt-2">
+                                    <div
+                                        className="glass-panel rounded-lg px-3 py-1.5 flex items-center gap-2 justify-center"
+                                        style={{background: "rgba(255,255,255,0.75)", backdropFilter: "blur(8px)"}}>
+                                        <div
+                                            className="w-2.5 h-2.5 rounded-full"
+                                            style={{backgroundColor: PARTY_CONFIG[currentBallot.partyCode]?.color || "#94a3b8"}}
+                                        />
+                                        <div className="text-[11px] text-slate-600">
+                                            <span
+                                                className="font-mono text-slate-400">#{currentBallot.id.toString().padStart(4, "0")}</span>
+                                            {" → "}
+                                            <span className="font-semibold text-slate-800">
+                        {currentBallot.partyCode === "PX" ? "No Vote" : currentBallot.partyName}
+                      </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* ── TOP-RIGHT: Pie chart ── */}
+                        <div className="absolute top-20 right-4 z-30 w-52">
+                            <div
+                                className="max-w-3xl mx-auto rounded-2xl p-5 relative"
+                                style={{
+                                    background: "linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.1) 100%)",
+                                    backdropFilter: "blur(8px) saturate(150%)",
+                                    WebkitBackdropFilter: "blur(8px) saturate(150%)",
+                                    borderTop: "1px solid rgba(255, 255, 255, 0.9)",
+                                    borderLeft: "1px solid rgba(255, 255, 255, 0.7)",
+                                    borderRight: "1px solid rgba(255, 255, 255, 0.2)",
+                                    borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
+                                    boxShadow: "0 16px 40px -8px rgba(0, 0, 0, 0.15), inset 0 0 20px rgba(255, 255, 255, 0.3)"
+                                }}>
+                                <div
+                                    className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-2 self-start">Composition
+                                </div>
+                                <PieChart tallies={tallyArray} total={totalCounted}/>
+                                <div className="mt-2 space-y-1 w-full">
+                                    {tallyArray.map((party) => {
+                                        const pct = totalCounted > 0 ? (party.count / totalCounted) * 100 : 0;
+                                        return (
+                                            <div key={party.code}
+                                                 className="flex items-center justify-between gap-1.5">
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="w-2 h-2 rounded-full"
+                                                         style={{backgroundColor: party.color}}/>
+                                                    <span
+                                                        className="text-[10px] text-slate-600 truncate">{party.code === "PX" ? "No Vote" : party.name}</span>
+                                                </div>
+                                                <span
+                                                    className="text-[10px] text-slate-500 font-mono">{pct.toFixed(1)}%</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ── BOTTOM: Results table ── */}
+                        <div className="absolute bottom-4 left-4 right-4 z-30">
+                            <div
+                                className="max-w-3xl mx-auto rounded-2xl p-5 relative"
+                                style={{
+                                    background: "linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.1) 100%)",
+                                    backdropFilter: "blur(8px) saturate(150%)",
+                                    WebkitBackdropFilter: "blur(8px) saturate(150%)",
+                                    borderTop: "1px solid rgba(255, 255, 255, 0.9)",
+                                    borderLeft: "1px solid rgba(255, 255, 255, 0.7)",
+                                    borderRight: "1px solid rgba(255, 255, 255, 0.2)",
+                                    borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
+                                    boxShadow: "0 16px 40px -8px rgba(0, 0, 0, 0.15), inset 0 0 20px rgba(255, 255, 255, 0.3)"
+                                }}>
+                                <div
+                                    className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-2">Results
+                                </div>
+                                <table className="w-full">
+                                    <thead>
+                                    <tr className="border-b border-slate-200">
+                                        <th className="text-left text-[10px] text-slate-400 uppercase tracking-wider pb-1.5 font-semibold">Party</th>
+                                        <th className="text-right text-[10px] text-slate-400 uppercase tracking-wider pb-1.5 font-semibold">Votes</th>
+                                        <th className="text-right text-[10px] text-slate-400 uppercase tracking-wider pb-1.5 font-semibold">Percentage</th>
+                                        <th className="text-right text-[10px] text-slate-400 uppercase tracking-wider pb-1.5 font-semibold">Status</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {tallyArray.map((party) => {
+                                        const pct = totalCounted > 0 ? (party.count / totalCounted) * 100 : 0;
+                                        const isWinner = phase === "certified" && winner?.code === party.code && party.code !== "PX";
+                                        return (
+                                            <tr key={party.code}
+                                                className={`border-b border-slate-100 transition-colors ${isWinner ? "bg-blue-50/60" : ""}`}>
+                                                <td className="py-1.5">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-2.5 h-2.5 rounded"
+                                                             style={{backgroundColor: party.color}}/>
+                                                        <span
+                                                            className="text-xs text-slate-800 font-medium">{party.code === "PX" ? "No Vote" : party.name}</span>
+                                                        {isWinner && <span
+                                                            className="text-[9px] bg-yellow-100 text-yellow-800 border border-yellow-300 px-1.5 py-0.5 rounded font-semibold">WINNER</span>}
+                                                    </div>
+                                                </td>
+                                                <td className="py-1.5 text-right"><span
+                                                    className="text-xs text-slate-800 font-mono font-bold">{party.count}</span>
+                                                </td>
+                                                <td className="py-1.5 text-right"><span
+                                                    className="text-xs text-slate-600 font-mono">{pct.toFixed(2)}%</span>
+                                                </td>
+                                                <td className="py-1.5 text-right">
+                                                    {isWinner ? (
+                                                        <span
+                                                            className="text-[9px] bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded-full font-semibold">ELECTED</span>
+                                                    ) : phase === "certified" ? (
+                                                        <span className="text-[9px] text-slate-400">—</span>
+                                                    ) : (
+                                                        <span
+                                                            className="text-[9px] text-blue-600 animate-pulse">COUNTING</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                    </tbody>
+                                    <tfoot>
+                                    <tr className="border-t border-slate-300">
+                                        <td className="py-1.5 text-xs text-slate-500 font-semibold">Total</td>
+                                        <td className="py-1.5 text-right text-xs text-slate-800 font-mono font-bold">{totalCounted}</td>
+                                        <td className="py-1.5 text-right text-xs text-slate-600 font-mono">{totalCounted > 0 ? "100.00%" : "0.00%"}</td>
+                                        <td/>
+                                    </tr>
+                                    </tfoot>
+                                </table>
+
+                                {/* Certification banner embedded at bottom */}
+                                {phase === "certified" && (
+                                    <div className="mt-3 pt-3 border-t border-green-200">
+                                        <div className="flex items-center gap-3">
+                                            <div
+                                                className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 border border-green-200">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                     stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round">
+                                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                                    <polyline points="22 4 12 14.01 9 11.01"/>
+                                                </svg>
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="text-sm font-bold text-slate-800">Vote Resolution
+                                                    Complete — Results Certified
+                                                </div>
+                                                <div
+                                                    className="flex items-center gap-4 mt-1 text-[10px] text-slate-500">
+                                                    <span>Total: <span
+                                                        className="font-mono font-bold text-slate-700">{totalCounted}</span></span>
+                                                    <span>Certified: <span
+                                                        className="font-mono text-slate-700">{timestamp}</span></span>
+                                                    {winner && winner.code !== "PX" && (
+                                                        <span>Winner: <span
+                                                            className="font-bold text-slate-800">{winner.name}</span> ({((winner.count / totalCounted) * 100).toFixed(2)}%)</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </main>
+
+            {/* Footer — hidden during full-screen counting */}
+            <footer
+                className={`relative z-10 mt-8 border-t border-slate-200 bg-white/60 backdrop-blur ${phase === "counting" || phase === "certified" ? "hidden" : ""}`}>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+                    <div className="text-[10px] text-slate-400">© 2026 ICT Election Commission — Transparent Digital
+                        Vote Resolution
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-500"/>
+                        <span className="text-[10px] text-slate-400">Secure Session</span>
+                    </div>
+                </div>
+            </footer>
         </div>
-      </footer>
-    </div>
-  );
+    );
 }
