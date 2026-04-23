@@ -29,6 +29,8 @@ type Phase = "idle" | "loading" | "parsing" | "counting" | "certified";
 // const CSV_FILENAME = "2026 Student Association Party E-Ballot Voting (All students)-test.csv";
 const CSV_FILENAME = "2025 Student Association Party E-Ballot Voting (All students).csv";
 
+const animationSpeed = 0.018
+
 const PARTY_CONFIG: Record<
     string,
     { name: string; color: string; lightColor: string }
@@ -383,7 +385,7 @@ function BallotScene({currentBallot, onBallotLanded, tallies, phase, onUnfoldCom
                 const mesh = state.ballotMesh;
 
                 if (state.animPhase === "unfold") {
-                    state.animProgress += 0.008; // Unfold speed
+                    state.animProgress += animationSpeed; // Unfold speed
                     const t = Math.min(state.animProgress, 1);
                     const ease = 1 - Math.pow(1 - t, 3); // ease-out cubic
 
@@ -421,7 +423,7 @@ function BallotScene({currentBallot, onBallotLanded, tallies, phase, onUnfoldCom
                     }
 
                 } else if (state.animPhase === "drop") {
-                    state.animProgress += 0.012; // Drop speed
+                    state.animProgress += animationSpeed * 1.5; // Drop speed
                     const t = Math.min(state.animProgress * 1.5, 1);
                     const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 
