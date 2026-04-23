@@ -26,8 +26,8 @@ type Phase = "idle" | "loading" | "parsing" | "counting" | "certified";
 /* ═══════════════════════════════════════════════════
    CONSTANTS
    ═══════════════════════════════════════════════════ */
-// const CSV_FILENAME = "2026 Student Association Party E-Ballot Voting (All students)-test.csv";
-const CSV_FILENAME = "2025 Student Association Party E-Ballot Voting (All students).csv";
+const CSV_FILENAME = "2026 Student Association Party E-Ballot Voting (All students)-test.csv";
+// const CSV_FILENAME = "2025 Student Association Party E-Ballot Voting (All students).csv";
 
 const animationSpeed = 0.018
 
@@ -104,9 +104,9 @@ function createBallotTexture(ballot: BallotRecord): THREE.CanvasTexture {
 
     // Paper background
     const grad = ctx.createLinearGradient(0, 0, 512, 700);
-    grad.addColorStop(0, "#fefce8");
-    grad.addColorStop(0.5, "#fef9c3");
-    grad.addColorStop(1, "#fefce8");
+    grad.addColorStop(0, "#ffffff");
+    grad.addColorStop(0.5, "#f8fafc");
+    grad.addColorStop(1, "#ffffff");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 512, 700);
 
@@ -127,17 +127,17 @@ function createBallotTexture(ballot: BallotRecord): THREE.CanvasTexture {
 
     // Header
     ctx.fillStyle = "#92400e";
-    ctx.font = "bold 14px 'Georgia', serif";
+    ctx.font = "bold 28px 'Inter', sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("OFFICIAL BALLOT", 256, 50);
 
     ctx.fillStyle = "#a16207";
-    ctx.font = "11px 'Georgia', serif";
-    ctx.fillText("2026 Student Association Party Election", 256, 72);
+    ctx.font = "bold 21px 'Inter', sans-serif";
+    ctx.fillText("2026 Student Association Party Election", 256, 82);
 
     ctx.fillStyle = "#b45309";
-    ctx.font = "10px monospace";
-    ctx.fillText(`Ballot #${ballot.id.toString().padStart(4, "0")}`, 256, 92);
+    ctx.font = "24px monospace";
+    ctx.fillText(`Ballot #${ballot.id.toString().padStart(4, "0")}`, 256, 115);
 
     // Divider
     ctx.strokeStyle = "rgba(161, 98, 7, 0.2)";
@@ -149,8 +149,8 @@ function createBallotTexture(ballot: BallotRecord): THREE.CanvasTexture {
 
     // Title
     ctx.fillStyle = "#78350f";
-    ctx.font = "bold 13px 'Georgia', serif";
-    ctx.fillText("Vote for the Student Council Party", 256, 138);
+    ctx.font = "bold 20px 'Inter', sans-serif";
+    ctx.fillText("Vote for the Student Council Party", 256, 158);
 
     // Choices
     const yStart = 175;
@@ -192,7 +192,7 @@ function createBallotTexture(ballot: BallotRecord): THREE.CanvasTexture {
 
         // Party text
         ctx.fillStyle = "#78350f";
-        ctx.font = "bold 16px 'Georgia', serif";
+        ctx.font = "bold 24px 'Inter', sans-serif";
         ctx.textAlign = "left";
         ctx.fillText(`${config.name}`, 115, y + 37);
     });
@@ -205,8 +205,8 @@ function createBallotTexture(ballot: BallotRecord): THREE.CanvasTexture {
     ctx.lineTo(472, 560);
     ctx.stroke();
 
-    ctx.fillStyle = "rgba(120, 53, 15, 0.4)";
-    ctx.font = "italic 10px 'Georgia', serif";
+    ctx.fillStyle = "rgba(120, 53, 15, 1)";
+    ctx.font = "italic 16px 'Inter', sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("Mark only one selection", 256, 585);
 
@@ -246,7 +246,7 @@ function BallotScene({currentBallot, onBallotLanded, tallies, phase, onUnfoldCom
         const h = container.clientHeight;
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xf1f5f9);
+        scene.background = null;
 
         const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
         camera.position.set(0, 5, 12);
@@ -277,7 +277,7 @@ function BallotScene({currentBallot, onBallotLanded, tallies, phase, onUnfoldCom
         dirLight.shadow.camera.bottom = -10;
         scene.add(dirLight);
 
-        const fillLight = new THREE.DirectionalLight(0xe8f0ff, 0.4);
+        const fillLight = new THREE.DirectionalLight(0xffffff, 4);
         fillLight.position.set(-3, 5, -3);
         scene.add(fillLight);
 
@@ -312,7 +312,7 @@ function BallotScene({currentBallot, onBallotLanded, tallies, phase, onUnfoldCom
                 roughness: 0.4,
                 metalness: 0.15,
                 transparent: true,
-                opacity: 0.35,
+                opacity: 0.7,
             });
 
             // Bottom
@@ -852,7 +852,12 @@ export default function ElectionPage() {
     ];
 
     return (
-        <div className="min-h-screen bg-[#f1f5f9] relative">
+        <div
+            className="min-h-screen flex flex-col relative bg-cover bg-center bg-no-repeat bg-fixed"
+            style={{backgroundImage: "url('/bg-image.png')"}}
+        >
+            {/* Optional: A subtle overlay so the background doesn't overwhelm the glass panels */}
+            <div className="absolute inset-0 bg-slate-900/10 z-0 pointer-events-none"/>
             {/* Top header bar — hidden during full-screen counting */}
             <header
                 className={`relative z-10 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm ${phase === "counting" || phase === "certified" ? "hidden" : ""}`}>
@@ -907,7 +912,7 @@ export default function ElectionPage() {
             </header>
 
             {/* Main content */}
-            <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-6">
+            <main className="relative z-10 flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
                 {/* ─── IDLE ─── */}
                 {phase === "idle" && (
                     <div className="flex flex-col items-center justify-center py-32"
@@ -944,7 +949,16 @@ export default function ElectionPage() {
                 {/* ─── LOADING / PARSING ─── */}
                 {(phase === "loading" || phase === "parsing") && (
                     <div className="max-w-xl mx-auto py-20" style={{animation: "fadeInUp 0.6s ease-out"}}>
-                        <div className="glass-panel rounded-xl p-6 space-y-5">
+                        <div className="glass-panel rounded-xl p-6 space-y-5" style={{
+                            background: "linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.1) 100%)",
+                            backdropFilter: "blur(8px) saturate(150%)",
+                            WebkitBackdropFilter: "blur(8px) saturate(150%)",
+                            borderTop: "1px solid rgba(255, 255, 255, 0.9)",
+                            borderLeft: "1px solid rgba(255, 255, 255, 0.7)",
+                            borderRight: "1px solid rgba(255, 255, 255, 0.2)",
+                            borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
+                            boxShadow: "0 16px 40px -8px rgba(0, 0, 0, 0.15), inset 0 0 20px rgba(255, 255, 255, 0.3)"
+                        }}>
                             <div className="flex items-center gap-3 mb-2">
                                 <div
                                     className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center border border-blue-100">
@@ -1019,8 +1033,18 @@ export default function ElectionPage() {
 
                         {/* ── TOP: Progress bar ── */}
                         <div className="absolute top-4 left-4 right-4 z-30">
-                            <div className="max-w-xl mx-auto glass-panel rounded-xl p-3 flex items-center gap-4"
-                                 style={{background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)"}}>
+                            <div
+                                className="max-w-xl mx-auto glass-panel rounded-xl p-3 flex items-center gap-4"
+                                style={{
+                                    background: "linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.1) 100%)",
+                                    backdropFilter: "blur(8px) saturate(150%)",
+                                    WebkitBackdropFilter: "blur(8px) saturate(150%)",
+                                    borderTop: "1px solid rgba(255, 255, 255, 0.9)",
+                                    borderLeft: "1px solid rgba(255, 255, 255, 0.7)",
+                                    borderRight: "1px solid rgba(255, 255, 255, 0.2)",
+                                    borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
+                                    boxShadow: "0 16px 40px -8px rgba(0, 0, 0, 0.15), inset 0 0 20px rgba(255, 255, 255, 0.3)"
+                                }}>
                                 <div className="flex items-center gap-2 flex-shrink-0">
                                     <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"/>
                                     <span
@@ -1048,7 +1072,16 @@ export default function ElectionPage() {
                                 <div className="max-w-xs mx-auto mt-2">
                                     <div
                                         className="glass-panel rounded-lg px-3 py-1.5 flex items-center gap-2 justify-center"
-                                        style={{background: "rgba(255,255,255,0.75)", backdropFilter: "blur(8px)"}}>
+                                        style={{
+                                            background: "linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.1) 100%)",
+                                            backdropFilter: "blur(8px) saturate(150%)",
+                                            WebkitBackdropFilter: "blur(8px) saturate(150%)",
+                                            borderTop: "1px solid rgba(255, 255, 255, 0.9)",
+                                            borderLeft: "1px solid rgba(255, 255, 255, 0.7)",
+                                            borderRight: "1px solid rgba(255, 255, 255, 0.2)",
+                                            borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
+                                            boxShadow: "0 16px 40px -8px rgba(0, 0, 0, 0.15), inset 0 0 20px rgba(255, 255, 255, 0.3)"
+                                        }}>
                                         <div
                                             className="w-2.5 h-2.5 rounded-full"
                                             style={{backgroundColor: PARTY_CONFIG[currentBallot.partyCode]?.color || "#94a3b8"}}
@@ -1117,18 +1150,25 @@ export default function ElectionPage() {
                                     borderLeft: "1px solid rgba(255, 255, 255, 0.7)",
                                     borderRight: "1px solid rgba(255, 255, 255, 0.2)",
                                     borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
-                                    boxShadow: "0 16px 40px -8px rgba(0, 0, 0, 0.15), inset 0 0 20px rgba(255, 255, 255, 0.3)"
+                                    boxShadow: "0 16px 40px -8px rgba(0, 0, 0, 0.15), inset 0 0 20px rgba(255, 255, 255, 0.3)",
+                                    paddingRight: 0,
+                                    paddingLeft: 0
                                 }}>
                                 <div
-                                    className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-2">Results
+                                    className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-2"
+                                    style={{paddingLeft: 20}}>Results
                                 </div>
                                 <table className="w-full">
                                     <thead>
                                     <tr className="border-b border-slate-200">
-                                        <th className="text-left text-[10px] text-slate-400 uppercase tracking-wider pb-1.5 font-semibold">Party</th>
+                                        <th className="text-left text-[10px] text-slate-400 uppercase tracking-wider pb-1.5 font-semibold"
+                                            style={{paddingLeft: 20}}>Party
+                                        </th>
                                         <th className="text-right text-[10px] text-slate-400 uppercase tracking-wider pb-1.5 font-semibold">Votes</th>
                                         <th className="text-right text-[10px] text-slate-400 uppercase tracking-wider pb-1.5 font-semibold">Percentage</th>
-                                        <th className="text-right text-[10px] text-slate-400 uppercase tracking-wider pb-1.5 font-semibold">Status</th>
+                                        <th className="text-right text-[10px] text-slate-400 uppercase tracking-wider pb-1.5 font-semibold"
+                                            style={{paddingRight: 20}}>Status
+                                        </th>
                                     </tr>
                                     </thead>
                                     <tbody>
@@ -1138,7 +1178,7 @@ export default function ElectionPage() {
                                         return (
                                             <tr key={party.code}
                                                 className={`border-b border-slate-100 transition-colors ${isWinner ? "bg-blue-50/60" : ""}`}>
-                                                <td className="py-1.5">
+                                                <td className="py-1.5" style={{paddingLeft: 20}}>
                                                     <div className="flex items-center gap-2">
                                                         <div className="w-2.5 h-2.5 rounded"
                                                              style={{backgroundColor: party.color}}/>
@@ -1154,7 +1194,7 @@ export default function ElectionPage() {
                                                 <td className="py-1.5 text-right"><span
                                                     className="text-xs text-slate-600 font-mono">{pct.toFixed(2)}%</span>
                                                 </td>
-                                                <td className="py-1.5 text-right">
+                                                <td className="py-1.5 text-right" style={{paddingRight: 20}}>
                                                     {isWinner ? (
                                                         <span
                                                             className="text-[9px] bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded-full font-semibold">ELECTED</span>
@@ -1171,7 +1211,9 @@ export default function ElectionPage() {
                                     </tbody>
                                     <tfoot>
                                     <tr className="border-t border-slate-300">
-                                        <td className="py-1.5 text-xs text-slate-500 font-semibold">Total</td>
+                                        <td className="py-1.5 text-xs text-slate-500 font-semibold"
+                                            style={{paddingLeft: 20}}>Total
+                                        </td>
                                         <td className="py-1.5 text-right text-xs text-slate-800 font-mono font-bold">{totalCounted}</td>
                                         <td className="py-1.5 text-right text-xs text-slate-600 font-mono">{totalCounted > 0 ? "100.00%" : "0.00%"}</td>
                                         <td/>
@@ -1182,7 +1224,7 @@ export default function ElectionPage() {
                                 {/* Certification banner embedded at bottom */}
                                 {phase === "certified" && (
                                     <div className="mt-3 pt-3 border-t border-green-200">
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-3" style={{paddingLeft: 20}}>
                                             <div
                                                 className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 border border-green-200">
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none"

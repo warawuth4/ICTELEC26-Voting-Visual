@@ -1,21 +1,21 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const geistSans = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const geistMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Official Vote Resolution Session — 2025 Student Association",
+  title: "Official Vote Resolution Session — 2026 Student Association",
   description:
-    "Transparent digital vote counting visualization for the 2025 ICT Student Association Party Election.",
+    "Transparent digital vote counting visualization for the 2026 ICT Student Association Party Election.",
 };
 
 export default function RootLayout({
