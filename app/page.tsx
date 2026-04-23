@@ -26,28 +26,90 @@ type Phase = "idle" | "loading" | "parsing" | "counting" | "certified";
 /* ═══════════════════════════════════════════════════
    CONSTANTS
    ═══════════════════════════════════════════════════ */
-const CSV_FILENAME = "2026 Student Association Party E-Ballot Voting (All students)-test.csv";
-// const CSV_FILENAME = "2025 Student Association Party E-Ballot Voting (All students).csv";
 
-const animationSpeed = 0.018
+const animationSpeed = 0.018;
 
-const PARTY_CONFIG: Record<
-    string,
-    { name: string; color: string; lightColor: string }
-> = {
-    P1: {name: "Endorse (รับรอง)", color: "#2563eb", lightColor: "#93bbfd"},
-    P2: {name: "Not endorse (ไม่รับรอง)", color: "#ea580c", lightColor: "#fdba74"},
-    PX: {name: "No Vote (ไม่ประสงค์ลงคะแนน)", color: "#94a3b8", lightColor: "#cbd5e1"},
-    PD: {name: "Damaged Vote (บัตรเสีย)", color: "#ef4444", lightColor: "#fca5a5"}, // Added Red for Damaged
-};
+interface RoundConfig {
+    title: string;
+    filename: string;
+    backgroundImage?: string;
+    partyOrder: string[]; // Dictates which baskets are drawn (including Damaged)
+    ballotChoices: string[]; // Dictates which checkboxes print on the 3D paper
+    partyConfig: Record<string, { name: string; color: string; lightColor: string; keywords: string[] }>;
+}
 
-const PARTY_ORDER = ["P1", "P2", "PX", "PD"]; // Used for Baskets, Pie Chart, and Results
-const BALLOT_CHOICES = ["P1", "P2", "PX"]; // Used ONLY for drawing checkboxes on the paper
+// ════════════════════ TEST DATA ════════════════════ //
+const ELECTION_ROUNDS: RoundConfig[] = [
+    {
+        title: "Student Association Party",
+        filename: "2026 Student Association Party E-Ballot Voting (All students)-test.csv",
+        backgroundImage: "/BackgroundImage/Party.png",
+        partyOrder: ["P1", "P2", "PX", "PD"],
+        ballotChoices: ["P1", "P2", "PX"],
+        partyConfig: {
+            P1: {
+                name: "Endorse (รับรอง)",
+                color: "#2563eb",
+                lightColor: "#93bbfd",
+                keywords: ["endorse", "รับรอง"]
+            },
+            P2: {
+                name: "Not endorse (ไม่รับรอง)",
+                color: "#ea580c",
+                lightColor: "#fdba74",
+                keywords: ["not endorse", "ไม่รับรอง"]
+            },
+            PX: {
+                name: "No Vote (ไม่ประสงค์ลงคะแนน)",
+                color: "#94a3b8",
+                lightColor: "#cbd5e1",
+                keywords: ["no vote", "ไม่ประสงค์"]
+            },
+            PD: {
+                name: "Damaged Vote (บัตรเสีย)",
+                color: "#ef4444",
+                lightColor: "#fca5a5",
+                keywords: []},
+        }
+    },
+    {
+        title: "Student Representative (ICT Year 1)",
+        filename: "2026 Student Representative E-Ballot Voting (ICT ID66)-test.csv",
+        backgroundImage: "/BackgroundImage/ICT1.png",
+        partyOrder: ["C1", "C2", "PX", "PD"],
+        ballotChoices: ["C1", "C2", "PX"],
+        partyConfig: {
+            C1: {
+                name: "[1] 6688056 Prempavenn Lerttraipop",
+                color: "#10b981",
+                lightColor: "#6ee7b7",
+                keywords: ["[1]"]
+            },
+            C2: {
+                name: "[2] 6688142 Krerkkiat Wattanaporn",
+                color: "#8b5cf6",
+                lightColor: "#c4b5fd",
+                keywords: ["[2]"]
+            },
+            PX: {
+                name: "No Vote (ไม่ประสงค์ลงคะแนน)",
+                color: "#94a3b8",
+                lightColor: "#cbd5e1",
+                keywords: ["no vote", "ไม่ประสงค์", "[x]"]
+            },
+            PD: {
+                name: "Damaged Vote (บัตรเสีย)",
+                color: "#ef4444",
+                lightColor: "#fca5a5",
+                keywords: []},
+        }
+    }
+];
 
 /* ═══════════════════════════════════════════════════
    HELPERS
    ═══════════════════════════════════════════════════ */
-function parseCSV(text: string): BallotRecord[] {
+function parseCSV(text: string, round: RoundConfig): BallotRecord[] {
     const lines = text.trim().split("\n");
     const records: BallotRecord[] = [];
     for (let i = 1; i < lines.length; i++) {
@@ -55,24 +117,29 @@ function parseCSV(text: string): BallotRecord[] {
         if (!line) continue;
         const firstComma = line.indexOf(",");
         if (firstComma === -1) continue;
+
         const id = parseInt(line.substring(0, firstComma).replace(/"/g, ""), 10);
         let voteRaw = line.substring(firstComma + 1).replace(/"/g, "").trim();
         if (voteRaw.startsWith("- ")) voteRaw = voteRaw.substring(2);
 
-        let partyCode = "PD"; // Default is now Damaged Vote
         const lowerVote = voteRaw.toLowerCase();
+        let partyCode = "PD"; // Default to Damaged
 
-        // Match the text to the correct party
-        if (lowerVote.includes("not endorse")) {
-            partyCode = "P2";
-        } else if (lowerVote.includes("endorse")) {
-            partyCode = "P1";
-        } else if (lowerVote.includes("no vote") || lowerVote.includes("ไม่ประสงค์")) {
-            partyCode = "PX";
+        // Scan against this round's specific keywords
+        for (const code of round.partyOrder) {
+            if (code === "PD") continue;
+            const keywords = round.partyConfig[code].keywords;
+
+            // Special fix to prevent "Endorse" from matching "Not Endorse"
+            if (code === "P1" && lowerVote.includes("not endorse")) continue;
+
+            if (keywords.some((kw: any) => kw && lowerVote.includes(kw.toLowerCase()))) {
+                partyCode = code;
+                break;
+            }
         }
 
-        const config = PARTY_CONFIG[partyCode];
-        records.push({id, vote: voteRaw, partyCode, partyName: config.name});
+        records.push({id, vote: voteRaw, partyCode, partyName: round.partyConfig[partyCode].name});
     }
     return records;
 }
@@ -103,9 +170,10 @@ interface BallotSceneProps {
     phase: Phase;
     onUnfoldComplete: () => void;
     readyToDrop: boolean;
+    roundConfig: RoundConfig;
 }
 
-function createBallotTexture(ballot: BallotRecord): THREE.CanvasTexture {
+function createBallotTexture(ballot: BallotRecord, roundConfig: RoundConfig): THREE.CanvasTexture {
     const canvas = document.createElement("canvas");
     canvas.width = 512;
     canvas.height = 700;
@@ -164,8 +232,8 @@ function createBallotTexture(ballot: BallotRecord): THREE.CanvasTexture {
     // Choices
     const yStart = 175;
     const rowH = 120;
-    BALLOT_CHOICES.forEach((code, i) => {
-        const config = PARTY_CONFIG[code];
+    roundConfig.ballotChoices.forEach((code, i) => {
+        const config = roundConfig.partyConfig[code];
         const isSelected = ballot.partyCode === code;
         const y = yStart + i * rowH;
 
@@ -200,10 +268,23 @@ function createBallotTexture(ballot: BallotRecord): THREE.CanvasTexture {
         }
 
         // Party text
+        // Party text
         ctx.fillStyle = "#78350f";
         ctx.font = "bold 24px 'Inter', sans-serif";
         ctx.textAlign = "left";
-        ctx.fillText(`${config.name}`, 115, y + 37);
+
+        let displayName = config.name;
+        const maxTextWidth = 360; // The maximum pixel width allowed before hitting the right border
+
+        // Measure the text. If it's too long, slice it and add "..."
+        if (ctx.measureText(displayName).width > maxTextWidth) {
+            while (displayName.length > 0 && ctx.measureText(displayName + "...").width > maxTextWidth) {
+                displayName = displayName.slice(0, -1); // Remove one letter from the end
+            }
+            displayName += "...";
+        }
+
+        ctx.fillText(displayName, 115, y + 37);
     });
 
     // Footer
@@ -224,7 +305,15 @@ function createBallotTexture(ballot: BallotRecord): THREE.CanvasTexture {
     return texture;
 }
 
-function BallotScene({currentBallot, onBallotLanded, tallies, phase, onUnfoldComplete, readyToDrop}: BallotSceneProps) {
+function BallotScene({
+                         currentBallot,
+                         onBallotLanded,
+                         tallies,
+                         phase,
+                         onUnfoldComplete,
+                         readyToDrop,
+                         roundConfig
+                     }: BallotSceneProps) {
     const containerRef = useRef<HTMLDivElement>(null);
 
     const callbacksRef = useRef({onUnfoldComplete, readyToDrop});
@@ -303,21 +392,27 @@ function BallotScene({currentBallot, onBallotLanded, tallies, phase, onUnfoldCom
         floor.receiveShadow = true;
         scene.add(floor);
 
-        // Create baskets
+        // Create baskets (Auto-spacing based on number of options)
         const baskets: Record<string, THREE.Group> = {};
         const stackedBallots: Record<string, THREE.Mesh[]> = {};
-        const bPositions: Record<string, number> = {P1: -4.5, P2: -1.5, PX: 1.5, PD: 4.5};
-        const basketColors: Record<string, number> = {P1: 0x2563eb, P2: 0xea580c, PX: 0x94a3b8, PD: 0xef4444};
+        const bPositions: Record<string, number> = {};
 
-        PARTY_ORDER.forEach((code) => {
+        const count = roundConfig.partyOrder.length;
+        const spacing = Math.min(3.0, 12.0 / count); // Shrinks spacing if there are >4 boxes
+        const startX = -((count - 1) * spacing) / 2;
+
+        roundConfig.partyOrder.forEach((code, i) => {
+            bPositions[code] = startX + i * spacing;
+            const config = roundConfig.partyConfig[code];
+
             const group = new THREE.Group();
-            const xPos = bPositions[code];
             group.position.set(bPositions[code], -1.5, 2);
 
-            // Basket box (open top)
-            const boxW = 2.2, boxH = 1.0, boxD = 1.6, wallThick = 0.06;
+            // Basket box geometry
+            const boxW = Math.min(2.2, spacing - 0.4); // Shrink box width if tight
+            const boxH = 1.0, boxD = 1.6, wallThick = 0.06;
             const basketMat = new THREE.MeshStandardMaterial({
-                color: basketColors[code],
+                color: config.color,
                 roughness: 0.4,
                 metalness: 0.15,
                 transparent: true,
@@ -363,12 +458,12 @@ function BallotScene({currentBallot, onBallotLanded, tallies, phase, onUnfoldCom
 
             // Set the big text based on category
             let labelText = `[${code}]`;
-            if (code === "PX") labelText = "No Vote";
+            if (code === "PX") labelText = "No Vote (ไม่ประสงค์ลงคะแนน)";
             if (code === "PD") labelText = "Invalid";
             lctx.fillText(labelText, 128, 28);
 
             lctx.font = "18px Arial, sans-serif";
-            lctx.fillText(code === "PX" || code === "PD" ? "" : PARTY_CONFIG[code].name, 128, 52);
+            lctx.fillText(code === "PX" || code === "PD" ? "" : config.name, 128, 52);
 
             scene.add(group);
             baskets[code] = group;
@@ -526,7 +621,7 @@ function BallotScene({currentBallot, onBallotLanded, tallies, phase, onUnfoldCom
             state.ballotMesh = null;
         }
 
-        const texture = createBallotTexture(currentBallot);
+        const texture = createBallotTexture(currentBallot, roundConfig);
         const ballotW = 2.3;
         const ballotH = 3.2;
         const halfH = ballotH / 2;
@@ -698,6 +793,24 @@ export default function ElectionPage() {
     const countingRef = useRef(false);
     const ballotLandedRef = useRef(false);
     const indexRef = useRef(0);
+    const [currentRound, setCurrentRound] = useState(0);
+
+    // This handles moving to the next election round
+    const handleNextRound = () => {
+        // Reset all data states
+        setBallots([]);
+        setCsvHash("");
+        setParseProgress(0);
+        setCountedIndex(0);
+        setCurrentBallot(null);
+        setTimestamp("");
+        setReadyToDrop(false);
+
+        // Advance the round and trigger the loading phase.
+        // (The useEffect will automatically handle resetting the tallies for the new round!)
+        setCurrentRound((prev) => prev + 1);
+        setPhase("loading");
+    };
 
     // Triggered when the 3D ballot finishes unfolding
     const handleUnfoldComplete = useCallback(() => {
@@ -730,21 +843,27 @@ export default function ElectionPage() {
     const audioRefs = useRef<Record<string, HTMLAudioElement[]>>({
         P1: typeof Audio !== "undefined" ? [
             new Audio("/sound/endorsev1.m4a"),
-            // new Audio("/sound/endorsev2.m4a"),
-            // new Audio("/sound/endorsev3.m4a")
+            new Audio("/sound/endorsev2.aac"),
         ] : [],
         P2: typeof Audio !== "undefined" ? [
             new Audio("/sound/not-endorsev1.m4a"),
-            // new Audio("/sound/not-endorsev2.m4a"),
-            // new Audio("/sound/not-endorsev3.m4a")
+            new Audio("/sound/not-endorsev2.aac"),
         ] : [],
         PX: typeof Audio !== "undefined" ? [
             new Audio("/sound/no-votev1.m4a"),
-            // new Audio("/sound/no-votev2.m4a"),
-            // new Audio("/sound/no-votev3.m4a")
+            new Audio("/sound/no-votev2.aac"),
         ] : [],
         PD: typeof Audio !== "undefined" ? [
             new Audio("/sound/damagev1.m4a"),
+            new Audio("/sound/damagev2.aac"),
+        ] : [],
+        C1: typeof Audio !== "undefined" ? [
+            new Audio("/sound/no1v1.m4a"),
+            new Audio("/sound/no1v2.aac"),
+        ] : [],
+        C2: typeof Audio !== "undefined" ? [
+            new Audio("/sound/no2v1.m4a"),
+            new Audio("/sound/no2v2.aac"),
         ] : [],
     });
 
@@ -768,15 +887,16 @@ export default function ElectionPage() {
         setPhase("loading");
     };
 
-    // Initialize tallies
+    // Initialize tallies when round changes
     useEffect(() => {
+        const round = ELECTION_ROUNDS[currentRound];
         const initial: Record<string, PartyTally> = {};
-        for (const code of PARTY_ORDER) {
-            const config = PARTY_CONFIG[code];
+        for (const code of round.partyOrder) {
+            const config = round.partyConfig[code];
             initial[code] = {code, name: config.name, color: config.color, lightColor: config.lightColor, count: 0};
         }
         setTallies(initial);
-    }, []);
+    }, [currentRound]);
 
     // Start automatic flow
     // useEffect(() => {
@@ -791,7 +911,7 @@ export default function ElectionPage() {
         if (phase !== "loading") return;
         const loadCSV = async () => {
             try {
-                const response = await fetch(`/${CSV_FILENAME}`);
+                const response = await fetch(`/${ELECTION_ROUNDS[currentRound].filename}`);
                 const text = await response.text();
                 setCsvHash(simpleHash(text));
                 setPhase("parsing");
@@ -800,7 +920,7 @@ export default function ElectionPage() {
                     await new Promise((r) => setTimeout(r, 80));
                     setParseProgress(Math.round((i / steps) * 100));
                 }
-                const records = parseCSV(text);
+                const records = parseCSV(text, ELECTION_ROUNDS[currentRound]);
                 setBallots(records);
                 await new Promise((r) => setTimeout(r, 800));
                 setPhase("counting");
@@ -871,7 +991,7 @@ export default function ElectionPage() {
     }, [phase, ballots]);
 
     // Derived data
-    const tallyArray = PARTY_ORDER.map((code) => tallies[code]).filter(Boolean);
+    const tallyArray = ELECTION_ROUNDS[currentRound].partyOrder.map((code) => tallies[code]).filter(Boolean);
     const totalCounted = tallyArray.reduce((sum, t) => sum + t.count, 0);
     const winner = phase === "certified"
         ? tallyArray.reduce((a, b) => (a.count > b.count ? a : b))
@@ -886,7 +1006,13 @@ export default function ElectionPage() {
     return (
         <div
             className="min-h-screen flex flex-col relative bg-cover bg-center bg-no-repeat bg-fixed"
-            style={{backgroundImage: "url('/bg-image.png')"}}
+            style={{
+                backgroundImage: `url('${
+                    phase === "idle"
+                        ? "/BackgroundImage/Default.png"
+                        : (ELECTION_ROUNDS[currentRound].backgroundImage || "/BackgroundImage/Default.png")
+                }')`
+            }}
         >
             {/* Optional: A subtle overlay so the background doesn't overwhelm the glass panels */}
             <div className="absolute inset-0 bg-slate-900/10 z-0 pointer-events-none"/>
@@ -908,8 +1034,8 @@ export default function ElectionPage() {
                             <div className="text-sm font-bold text-slate-800 tracking-wide">Official Vote Resolution
                                 Session
                             </div>
-                            <div className="text-[10px] text-slate-500 tracking-wider uppercase">2026 ICT Student
-                                Association Party Election
+                            <div className="text-[10px] text-slate-500 tracking-wider uppercase">
+                                2026 ICT Election — {ELECTION_ROUNDS[currentRound].title}
                             </div>
                         </div>
                     </div>
@@ -1054,12 +1180,14 @@ export default function ElectionPage() {
                         {/* Full-screen 3D scene (background layer) */}
                         <div className="absolute inset-0">
                             <BallotScene
+                                key={currentRound}
                                 currentBallot={currentBallot}
                                 onBallotLanded={handleBallotLanded}
                                 tallies={tallies}
                                 phase={phase}
                                 onUnfoldComplete={handleUnfoldComplete}
                                 readyToDrop={readyToDrop}
+                                roundConfig={ELECTION_ROUNDS[currentRound]}
                             />
                         </div>
 
@@ -1116,14 +1244,14 @@ export default function ElectionPage() {
                                         }}>
                                         <div
                                             className="w-2.5 h-2.5 rounded-full"
-                                            style={{backgroundColor: PARTY_CONFIG[currentBallot.partyCode]?.color || "#94a3b8"}}
+                                            style={{backgroundColor: ELECTION_ROUNDS[currentRound].partyConfig[currentBallot.partyCode]?.color || "#94a3b8"}}
                                         />
                                         <div className="text-[11px] text-slate-600">
                                             <span
                                                 className="font-mono text-slate-400">#{currentBallot.id.toString().padStart(4, "0")}</span>
                                             {" → "}
                                             <span className="font-semibold text-slate-800">
-                        {currentBallot.partyCode === "PX" ? "No Vote" : currentBallot.partyName}
+                        {currentBallot.partyCode === "PX" ? "No Vote (ไม่ประสงค์ลงคะแนน)" : currentBallot.partyName}
                       </span>
                                         </div>
                                     </div>
@@ -1155,14 +1283,20 @@ export default function ElectionPage() {
                                         return (
                                             <div key={party.code}
                                                  className="flex items-center justify-between gap-1.5">
-                                                <div className="flex items-center gap-1.5">
-                                                    <div className="w-2 h-2 rounded-full"
+                                                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                                    <div className="w-2 h-2 rounded-full flex-shrink-0"
                                                          style={{backgroundColor: party.color}}/>
                                                     <span
-                                                        className="text-[10px] text-slate-600 truncate">{party.code === "PX" ? "No Vote" : party.name}</span>
+                                                        className="text-[10px] text-slate-600 truncate"
+                                                        title={party.code === "PX" ? "No Vote (ไม่ประสงค์ลงคะแนน)" : party.name}
+                                                    >
+                                                        {party.code === "PX" ? "No Vote (ไม่ประสงค์ลงคะแนน)" : party.name}
+                                                    </span>
                                                 </div>
                                                 <span
-                                                    className="text-[10px] text-slate-500 font-mono">{pct.toFixed(1)}%</span>
+                                                    className="text-[10px] text-slate-500 font-mono flex-shrink-0">
+                                                    {pct.toFixed(1)}%
+                                                </span>
                                             </div>
                                         );
                                     })}
@@ -1215,7 +1349,7 @@ export default function ElectionPage() {
                                                         <div className="w-2.5 h-2.5 rounded"
                                                              style={{backgroundColor: party.color}}/>
                                                         <span
-                                                            className="text-xs text-slate-800 font-medium">{party.code === "PX" ? "No Vote" : party.name}</span>
+                                                            className="text-xs text-slate-800 font-medium">{party.code === "PX" ? "No Vote (ไม่ประสงค์ลงคะแนน)" : party.name}</span>
                                                         {isWinner && <span
                                                             className="text-[9px] bg-yellow-100 text-yellow-800 border border-yellow-300 px-1.5 py-0.5 rounded font-semibold">WINNER</span>}
                                                     </div>
@@ -1255,8 +1389,8 @@ export default function ElectionPage() {
 
                                 {/* Certification banner embedded at bottom */}
                                 {phase === "certified" && (
-                                    <div className="mt-3 pt-3 border-t border-green-200">
-                                        <div className="flex items-center gap-3" style={{paddingLeft: 20}}>
+                                    <div className="mt-3 pt-3 border-t border-green-200 " style={{paddingLeft: 20}}>
+                                        <div className="flex items-center gap-3 " style={{paddingBottom: 10}}>
                                             <div
                                                 className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 border border-green-200">
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -1282,6 +1416,26 @@ export default function ElectionPage() {
                                                 </div>
                                             </div>
                                         </div>
+                                        {/* 👇 ADD THIS NEW BUTTON BLOCK */}
+                                        {currentRound < ELECTION_ROUNDS.length - 1 ? (
+                                            <button
+                                                onClick={handleNextRound}
+                                                className="group flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow-md transition-all active:scale-95"
+                                            >
+                                                Continue to {ELECTION_ROUNDS[currentRound + 1].title}
+                                                <svg className="w-4 h-4 transition-transform group-hover:translate-x-1"
+                                                     fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                                     strokeWidth="2">
+                                                    <path strokeLinecap="round" strokeLinejoin="round"
+                                                          d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                                                </svg>
+                                            </button>
+                                        ) : (
+                                            <div
+                                                className="px-5 py-2 bg-slate-100 text-slate-500 rounded-lg text-xs font-semibold border border-slate-200">
+                                                All Elections Completed
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
