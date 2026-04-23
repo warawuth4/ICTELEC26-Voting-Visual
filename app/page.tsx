@@ -38,9 +38,11 @@ const PARTY_CONFIG: Record<
     P1: {name: "Endorse (รับรอง)", color: "#2563eb", lightColor: "#93bbfd"},
     P2: {name: "Not endorse (ไม่รับรอง)", color: "#ea580c", lightColor: "#fdba74"},
     PX: {name: "No Vote (ไม่ประสงค์ลงคะแนน)", color: "#94a3b8", lightColor: "#cbd5e1"},
+    PD: {name: "Damaged Vote (บัตรเสีย)", color: "#ef4444", lightColor: "#fca5a5"}, // Added Red for Damaged
 };
 
-const PARTY_ORDER = ["P1", "P2", "PX"];
+const PARTY_ORDER = ["P1", "P2", "PX", "PD"]; // Used for Baskets, Pie Chart, and Results
+const BALLOT_CHOICES = ["P1", "P2", "PX"]; // Used ONLY for drawing checkboxes on the paper
 
 /* ═══════════════════════════════════════════════════
    HELPERS
@@ -56,13 +58,20 @@ function parseCSV(text: string): BallotRecord[] {
         const id = parseInt(line.substring(0, firstComma).replace(/"/g, ""), 10);
         let voteRaw = line.substring(firstComma + 1).replace(/"/g, "").trim();
         if (voteRaw.startsWith("- ")) voteRaw = voteRaw.substring(2);
-        let partyCode = "PX"; // Default
-        if (voteRaw.toLowerCase().includes("not endorse")) {
+
+        let partyCode = "PD"; // Default is now Damaged Vote
+        const lowerVote = voteRaw.toLowerCase();
+
+        // Match the text to the correct party
+        if (lowerVote.includes("not endorse")) {
             partyCode = "P2";
-        } else if (voteRaw.toLowerCase().includes("endorse")) {
+        } else if (lowerVote.includes("endorse")) {
             partyCode = "P1";
+        } else if (lowerVote.includes("no vote") || lowerVote.includes("ไม่ประสงค์")) {
+            partyCode = "PX";
         }
-        const config = PARTY_CONFIG[partyCode] || PARTY_CONFIG.PX;
+
+        const config = PARTY_CONFIG[partyCode];
         records.push({id, vote: voteRaw, partyCode, partyName: config.name});
     }
     return records;
@@ -155,7 +164,7 @@ function createBallotTexture(ballot: BallotRecord): THREE.CanvasTexture {
     // Choices
     const yStart = 175;
     const rowH = 120;
-    PARTY_ORDER.forEach((code, i) => {
+    BALLOT_CHOICES.forEach((code, i) => {
         const config = PARTY_CONFIG[code];
         const isSelected = ballot.partyCode === code;
         const y = yStart + i * rowH;
@@ -297,8 +306,8 @@ function BallotScene({currentBallot, onBallotLanded, tallies, phase, onUnfoldCom
         // Create baskets
         const baskets: Record<string, THREE.Group> = {};
         const stackedBallots: Record<string, THREE.Mesh[]> = {};
-        const bPositions: Record<string, number> = {P1: -3.5, P2: 0, PX: 3.5};
-        const basketColors: Record<string, number> = {P1: 0x2563eb, P2: 0xea580c, PX: 0x94a3b8};
+        const bPositions: Record<string, number> = {P1: -4.5, P2: -1.5, PX: 1.5, PD: 4.5};
+        const basketColors: Record<string, number> = {P1: 0x2563eb, P2: 0xea580c, PX: 0x94a3b8, PD: 0xef4444};
 
         PARTY_ORDER.forEach((code) => {
             const group = new THREE.Group();
@@ -351,14 +360,15 @@ function BallotScene({currentBallot, onBallotLanded, tallies, phase, onUnfoldCom
             lctx.fillStyle = "#334155";
             lctx.font = "bold 28px Arial, sans-serif";
             lctx.textAlign = "center";
-            lctx.fillText(code === "PX" ? "No Vote" : `[${code}]`, 128, 28);
+
+            // Set the big text based on category
+            let labelText = `[${code}]`;
+            if (code === "PX") labelText = "No Vote";
+            if (code === "PD") labelText = "Invalid";
+            lctx.fillText(labelText, 128, 28);
+
             lctx.font = "18px Arial, sans-serif";
-            lctx.fillText(code === "PX" ? "" : PARTY_CONFIG[code].name, 128, 52);
-            const labelTex = new THREE.CanvasTexture(labelCanvas);
-            const labelMat = new THREE.MeshBasicMaterial({map: labelTex, transparent: true});
-            const labelMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.5), labelMat);
-            labelMesh.position.set(0, -0.4, boxD / 2 + 0.15);
-            group.add(labelMesh);
+            lctx.fillText(code === "PX" || code === "PD" ? "" : PARTY_CONFIG[code].name, 128, 52);
 
             scene.add(group);
             baskets[code] = group;
@@ -693,8 +703,13 @@ export default function ElectionPage() {
     const handleUnfoldComplete = useCallback(() => {
         if (!currentBallot) return;
 
-        const sound = audioRefs.current[currentBallot.partyCode];
-        if (sound) {
+        const soundArray = audioRefs.current[currentBallot.partyCode];
+
+        if (soundArray && soundArray.length > 0) {
+            // Pick a random sound from the array
+            const randomIndex = Math.floor(Math.random() * soundArray.length);
+            const sound = soundArray[randomIndex];
+
             sound.currentTime = 0;
 
             sound.onended = () => {
@@ -712,24 +727,41 @@ export default function ElectionPage() {
     }, [currentBallot]);
 
     // Read sound
-    const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({
-        P1: typeof Audio !== "undefined" ? new Audio("/endorse.mp3") : null,
-        P2: typeof Audio !== "undefined" ? new Audio("/not-endorse.mp3") : null,
-        PX: typeof Audio !== "undefined" ? new Audio("/no-vote.mp3") : null,
+    const audioRefs = useRef<Record<string, HTMLAudioElement[]>>({
+        P1: typeof Audio !== "undefined" ? [
+            new Audio("/sound/endorsev1.m4a"),
+            // new Audio("/sound/endorsev2.m4a"),
+            // new Audio("/sound/endorsev3.m4a")
+        ] : [],
+        P2: typeof Audio !== "undefined" ? [
+            new Audio("/sound/not-endorsev1.m4a"),
+            // new Audio("/sound/not-endorsev2.m4a"),
+            // new Audio("/sound/not-endorsev3.m4a")
+        ] : [],
+        PX: typeof Audio !== "undefined" ? [
+            new Audio("/sound/no-votev1.m4a"),
+            // new Audio("/sound/no-votev2.m4a"),
+            // new Audio("/sound/no-votev3.m4a")
+        ] : [],
+        PD: typeof Audio !== "undefined" ? [
+            new Audio("/sound/damagev1.m4a"),
+        ] : [],
     });
 
     const handleStartSession = () => {
         // 1. Silent play/pause to unlock audio engine in strict browsers (like Safari)
-        Object.values(audioRefs.current).forEach(sound => {
-            if (sound) {
-                sound.volume = 0; // temporarily mute
-                sound.play().then(() => {
-                    sound.pause();
-                    sound.currentTime = 0;
-                    sound.volume = 1; // restore volume for actual counting
-                }).catch(() => {
-                }); // ignore catch if browser is weird
-            }
+        Object.values(audioRefs.current).forEach(soundArray => {
+            soundArray.forEach(sound => {
+                if (sound) {
+                    sound.volume = 0; // temporarily mute
+                    sound.play().then(() => {
+                        sound.pause();
+                        sound.currentTime = 0;
+                        sound.volume = 1; // restore volume for actual counting
+                    }).catch(() => {
+                    }); // ignore catch if browser is weird
+                }
+            });
         });
 
         // 2. Start the loading phase
