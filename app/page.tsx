@@ -80,6 +80,70 @@ const ELECTION_ROUNDS: RoundConfig[] = [
         ballotChoices: ["C1", "C2", "PX"],
         partyConfig: {
             C1: {
+                name: "[1] 6888041 Aryan Khan",
+                color: "#10b981",
+                lightColor: "#6ee7b7",
+                keywords: ["[1]"]
+            },
+            C2: {
+                name: "[2] 6888188 Monsiri Yutthasarnsenee",
+                color: "#8b5cf6",
+                lightColor: "#c4b5fd",
+                keywords: ["[2]"]
+            },
+            PX: {
+                name: "No Vote (ไม่ประสงค์ลงคะแนน)",
+                color: "#94a3b8",
+                lightColor: "#cbd5e1",
+                keywords: ["no vote", "ไม่ประสงค์", "[x]"]
+            },
+            PD: {
+                name: "Damaged Vote (บัตรเสีย)",
+                color: "#ef4444",
+                lightColor: "#fca5a5",
+                keywords: []},
+        }
+    },
+    {
+        title: "Student Representative (ICT Year 2)",
+        filename: "2026 Student Association Party E-Ballot Voting (All students)-test.csv",
+        backgroundImage: "/BackgroundImage/ICT2.png",
+        partyOrder: ["P1", "P2", "PX", "PD"],
+        ballotChoices: ["P1", "P2", "PX"],
+        partyConfig: {
+            P1: {
+                name: "Endorse (รับรอง)",
+                color: "#2563eb",
+                lightColor: "#93bbfd",
+                keywords: ["endorse", "รับรอง"]
+            },
+            P2: {
+                name: "Not endorse (ไม่รับรอง)",
+                color: "#ea580c",
+                lightColor: "#fdba74",
+                keywords: ["not endorse", "ไม่รับรอง"]
+            },
+            PX: {
+                name: "No Vote (ไม่ประสงค์ลงคะแนน)",
+                color: "#94a3b8",
+                lightColor: "#cbd5e1",
+                keywords: ["no vote", "ไม่ประสงค์", "[x]"]
+            },
+            PD: {
+                name: "Damaged Vote (บัตรเสีย)",
+                color: "#ef4444",
+                lightColor: "#fca5a5",
+                keywords: []},
+        }
+    },
+    {
+        title: "Student Representative (ICT Year 3)",
+        filename: "2026 Student Representative E-Ballot Voting (ICT ID66)-test.csv",
+        backgroundImage: "/BackgroundImage/ICT3.png",
+        partyOrder: ["C1", "C2", "PX", "PD"],
+        ballotChoices: ["C1", "C2", "PX"],
+        partyConfig: {
+            C1: {
                 name: "[1] 6688056 Prempavenn Lerttraipop",
                 color: "#10b981",
                 lightColor: "#6ee7b7",
@@ -103,7 +167,103 @@ const ELECTION_ROUNDS: RoundConfig[] = [
                 lightColor: "#fca5a5",
                 keywords: []},
         }
-    }
+    },
+    {
+        title: "Student Representative (DST Year 1)",
+        filename: "2026 Student Association Party E-Ballot Voting (All students)-test.csv",
+        backgroundImage: "/BackgroundImage/DST1.png",
+        partyOrder: ["P1", "P2", "PX", "PD"],
+        ballotChoices: ["P1", "P2", "PX"],
+        partyConfig: {
+            P1: {
+                name: "Endorse (รับรอง)",
+                color: "#2563eb",
+                lightColor: "#93bbfd",
+                keywords: ["endorse", "รับรอง"]
+            },
+            P2: {
+                name: "Not endorse (ไม่รับรอง)",
+                color: "#ea580c",
+                lightColor: "#fdba74",
+                keywords: ["not endorse", "ไม่รับรอง"]
+            },
+            PX: {
+                name: "No Vote (ไม่ประสงค์ลงคะแนน)",
+                color: "#94a3b8",
+                lightColor: "#cbd5e1",
+                keywords: ["no vote", "ไม่ประสงค์", "[x]"]
+            },
+            PD: {
+                name: "Damaged Vote (บัตรเสีย)",
+                color: "#ef4444",
+                lightColor: "#fca5a5",
+                keywords: []},
+        }
+    },
+    {
+        title: "Student Representative (DST Year 2)",
+        filename: "2026 Student Association Party E-Ballot Voting (All students)-test.csv",
+        backgroundImage: "/BackgroundImage/DST2.png",
+        partyOrder: ["P1", "P2", "PX", "PD"],
+        ballotChoices: ["P1", "P2", "PX"],
+        partyConfig: {
+            P1: {
+                name: "Endorse (รับรอง)",
+                color: "#2563eb",
+                lightColor: "#93bbfd",
+                keywords: ["endorse", "รับรอง"]
+            },
+            P2: {
+                name: "Not endorse (ไม่รับรอง)",
+                color: "#ea580c",
+                lightColor: "#fdba74",
+                keywords: ["not endorse", "ไม่รับรอง"]
+            },
+            PX: {
+                name: "No Vote (ไม่ประสงค์ลงคะแนน)",
+                color: "#94a3b8",
+                lightColor: "#cbd5e1",
+                keywords: ["no vote", "ไม่ประสงค์", "[x]"]
+            },
+            PD: {
+                name: "Damaged Vote (บัตรเสีย)",
+                color: "#ef4444",
+                lightColor: "#fca5a5",
+                keywords: []},
+        }
+    },
+    {
+        title: "Student Representative (DST Year 3)",
+        filename: "2026 Student Association Party E-Ballot Voting (All students)-test.csv",
+        backgroundImage: "/BackgroundImage/DST3.png",
+        partyOrder: ["P1", "P2", "PX", "PD"],
+        ballotChoices: ["P1", "P2", "PX"],
+        partyConfig: {
+            P1: {
+                name: "Endorse (รับรอง)",
+                color: "#2563eb",
+                lightColor: "#93bbfd",
+                keywords: ["endorse", "รับรอง"]
+            },
+            P2: {
+                name: "Not endorse (ไม่รับรอง)",
+                color: "#ea580c",
+                lightColor: "#fdba74",
+                keywords: ["not endorse", "ไม่รับรอง"]
+            },
+            PX: {
+                name: "No Vote (ไม่ประสงค์ลงคะแนน)",
+                color: "#94a3b8",
+                lightColor: "#cbd5e1",
+                keywords: ["no vote", "ไม่ประสงค์", "[x]"]
+            },
+            PD: {
+                name: "Damaged Vote (บัตรเสีย)",
+                color: "#ef4444",
+                lightColor: "#fca5a5",
+                keywords: []},
+        }
+    },
 ];
 
 /* ═══════════════════════════════════════════════════
@@ -839,31 +999,38 @@ export default function ElectionPage() {
         }
     }, [currentBallot]);
 
+    // Helper function to force audio preloading
+    const createPreloadedSound = (src: string) => {
+        const audio = new Audio(src);
+        audio.preload = "auto"; // 👈 Tells the browser to load this into memory immediately
+        return audio;
+    };
+
     // Read sound
     const audioRefs = useRef<Record<string, HTMLAudioElement[]>>({
         P1: typeof Audio !== "undefined" ? [
-            new Audio("/sound/endorsev1.m4a"),
-            new Audio("/sound/endorsev2.aac"),
+            createPreloadedSound("/sound/endorsev1.m4a"),
+            createPreloadedSound("/sound/endorsev2.aac"),
         ] : [],
         P2: typeof Audio !== "undefined" ? [
-            new Audio("/sound/not-endorsev1.m4a"),
-            new Audio("/sound/not-endorsev2.aac"),
+            createPreloadedSound("/sound/not-endorsev1.m4a"),
+            createPreloadedSound("/sound/not-endorsev2.aac"),
         ] : [],
         PX: typeof Audio !== "undefined" ? [
-            new Audio("/sound/no-votev1.m4a"),
-            new Audio("/sound/no-votev2.aac"),
+            createPreloadedSound("/sound/no-votev1.m4a"),
+            createPreloadedSound("/sound/no-votev2.aac"),
         ] : [],
         PD: typeof Audio !== "undefined" ? [
-            new Audio("/sound/damagev1.m4a"),
-            new Audio("/sound/damagev2.aac"),
+            createPreloadedSound("/sound/damagev1.m4a"),
+            createPreloadedSound("/sound/damagev2.aac"),
         ] : [],
         C1: typeof Audio !== "undefined" ? [
-            new Audio("/sound/no1v1.m4a"),
-            new Audio("/sound/no1v2.aac"),
+            createPreloadedSound("/sound/no1v1.m4a"),
+            createPreloadedSound("/sound/no1v2.aac"),
         ] : [],
         C2: typeof Audio !== "undefined" ? [
-            new Audio("/sound/no2v1.m4a"),
-            new Audio("/sound/no2v2.aac"),
+            createPreloadedSound("/sound/no2v1.m4a"),
+            createPreloadedSound("/sound/no2v2.aac"),
         ] : [],
     });
 
