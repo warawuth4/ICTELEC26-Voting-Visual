@@ -26,8 +26,8 @@ type Phase = "idle" | "loading" | "parsing" | "counting" | "certified";
 /* ═══════════════════════════════════════════════════
    CONSTANTS
    ═══════════════════════════════════════════════════ */
-const CSV_FILENAME =
-    "2026 Student Association Party E-Ballot Voting (All students)-test.csv";
+// const CSV_FILENAME = "2026 Student Association Party E-Ballot Voting (All students)-test.csv";
+const CSV_FILENAME = "2025 Student Association Party E-Ballot Voting (All students).csv";
 
 const PARTY_CONFIG: Record<
     string,
@@ -229,7 +229,7 @@ function BallotScene({currentBallot, onBallotLanded, tallies, phase, onUnfoldCom
         ballotMesh: THREE.Group | null;
         baskets: Record<string, THREE.Group>;
         stackedBallots: Record<string, THREE.Mesh[]>;
-        animPhase: "none" | "unfold" | "drop" | "done";
+        animPhase: "none" | "unfold" | "wait" | "drop" | "done";
         animProgress: number;
         currentTarget: string;
         dropRandomX: number;
@@ -368,7 +368,7 @@ function BallotScene({currentBallot, onBallotLanded, tallies, phase, onUnfoldCom
             animationId: 0,
             ballotMesh: null as THREE.Group | null,
             baskets, stackedBallots,
-            animPhase: "none" as "none" | "unfold" | "drop" | "done",
+            animPhase: "none" as "none" | "unfold" | "wait" | "drop" | "done",
             animProgress: 0,
             currentTarget: "",
             dropRandomX: 0,
