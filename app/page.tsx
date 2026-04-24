@@ -104,38 +104,38 @@ const ELECTION_ROUNDS: RoundConfig[] = [
     //             keywords: []},
     //     }
     // },
-    {
-        title: "Student Representative (ICT Year 2)",
-        filename: "2026 Student Representative E-Ballot Voting (ICT ID67).csv",
-        backgroundImage: "/BackgroundImage/ICT2.png",
-        partyOrder: ["P1", "P2", "PX", "PD"],
-        ballotChoices: ["P1", "P2", "PX"],
-        partyConfig: {
-            P1: {
-                name: "Endorse (รับรอง)",
-                color: "#2563eb",
-                lightColor: "#93bbfd",
-                keywords: ["endorse", "รับรอง"]
-            },
-            P2: {
-                name: "Not endorse (ไม่รับรอง)",
-                color: "#ea580c",
-                lightColor: "#fdba74",
-                keywords: ["not endorse", "ไม่รับรอง"]
-            },
-            PX: {
-                name: "No Vote (ไม่ประสงค์ลงคะแนน)",
-                color: "#94a3b8",
-                lightColor: "#cbd5e1",
-                keywords: ["no vote", "ไม่ประสงค์"]
-            },
-            PD: {
-                name: "Invalid Vote (บัตรเสีย)",
-                color: "#ef4444",
-                lightColor: "#fca5a5",
-                keywords: []},
-        }
-    },
+    // {
+    //     title: "Student Representative (ICT Year 2)",
+    //     filename: "2026 Student Representative E-Ballot Voting (ICT ID67).csv",
+    //     backgroundImage: "/BackgroundImage/ICT2.png",
+    //     partyOrder: ["P1", "P2", "PX", "PD"],
+    //     ballotChoices: ["P1", "P2", "PX"],
+    //     partyConfig: {
+    //         P1: {
+    //             name: "Endorse (รับรอง)",
+    //             color: "#2563eb",
+    //             lightColor: "#93bbfd",
+    //             keywords: ["endorse", "รับรอง"]
+    //         },
+    //         P2: {
+    //             name: "Not endorse (ไม่รับรอง)",
+    //             color: "#ea580c",
+    //             lightColor: "#fdba74",
+    //             keywords: ["not endorse", "ไม่รับรอง"]
+    //         },
+    //         PX: {
+    //             name: "No Vote (ไม่ประสงค์ลงคะแนน)",
+    //             color: "#94a3b8",
+    //             lightColor: "#cbd5e1",
+    //             keywords: ["no vote", "ไม่ประสงค์"]
+    //         },
+    //         PD: {
+    //             name: "Invalid Vote (บัตรเสีย)",
+    //             color: "#ef4444",
+    //             lightColor: "#fca5a5",
+    //             keywords: []},
+    //     }
+    // },
     {
         title: "Student Representative (ICT Year 3)",
         filename: "2026 Student Representative E-Ballot Voting (ICT ID66).csv",
@@ -159,7 +159,7 @@ const ELECTION_ROUNDS: RoundConfig[] = [
                 name: "No Vote (ไม่ประสงค์ลงคะแนน)",
                 color: "#94a3b8",
                 lightColor: "#cbd5e1",
-                keywords: ["no vote", "ไม่ประสงค์", "[x]"]
+                keywords: ["no vote", "ไม่ประสงค์"]
             },
             PD: {
                 name: "Invalid Vote (บัตรเสีย)",
@@ -191,7 +191,7 @@ const ELECTION_ROUNDS: RoundConfig[] = [
                 name: "No Vote (ไม่ประสงค์ลงคะแนน)",
                 color: "#94a3b8",
                 lightColor: "#cbd5e1",
-                keywords: ["no vote", "ไม่ประสงค์", "[x]"]
+                keywords: ["no vote", "ไม่ประสงค์"]
             },
             PD: {
                 name: "Invalid Vote (บัตรเสีย)",
@@ -223,7 +223,7 @@ const ELECTION_ROUNDS: RoundConfig[] = [
                 name: "No Vote (ไม่ประสงค์ลงคะแนน)",
                 color: "#94a3b8",
                 lightColor: "#cbd5e1",
-                keywords: ["no vote", "ไม่ประสงค์", "[x]"]
+                keywords: ["no vote", "ไม่ประสงค์"]
             },
             PD: {
                 name: "Invalid Vote (บัตรเสีย)",
@@ -255,7 +255,7 @@ const ELECTION_ROUNDS: RoundConfig[] = [
                 name: "No Vote (ไม่ประสงค์ลงคะแนน)",
                 color: "#94a3b8",
                 lightColor: "#cbd5e1",
-                keywords: ["no vote", "ไม่ประสงค์", "[x]"]
+                keywords: ["no vote", "ไม่ประสงค์"]
             },
             PD: {
                 name: "Invalid Vote (บัตรเสีย)",
