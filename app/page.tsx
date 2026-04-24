@@ -95,7 +95,7 @@ const ELECTION_ROUNDS: RoundConfig[] = [
                 name: "No Vote (ไม่ประสงค์ลงคะแนน)",
                 color: "#94a3b8",
                 lightColor: "#cbd5e1",
-                keywords: ["no vote", "ไม่ประสงค์", "[x]"]
+                keywords: ["no vote", "ไม่ประสงค์"]
             },
             PD: {
                 name: "Invalid Vote (บัตรเสีย)",
@@ -127,7 +127,7 @@ const ELECTION_ROUNDS: RoundConfig[] = [
                 name: "No Vote (ไม่ประสงค์ลงคะแนน)",
                 color: "#94a3b8",
                 lightColor: "#cbd5e1",
-                keywords: ["no vote", "ไม่ประสงค์", "[x]"]
+                keywords: ["no vote", "ไม่ประสงค์"]
             },
             PD: {
                 name: "Invalid Vote (บัตรเสีย)",
