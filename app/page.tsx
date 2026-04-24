@@ -33,12 +33,12 @@ interface RoundConfig {
     title: string;
     filename: string;
     backgroundImage?: string;
-    partyOrder: string[]; // Dictates which baskets are drawn (including Damaged)
+    partyOrder: string[]; // Dictates which baskets are drawn (including Invalid)
     ballotChoices: string[]; // Dictates which checkboxes print on the 3D paper
     partyConfig: Record<string, { name: string; color: string; lightColor: string; keywords: string[] }>;
 }
 
-// ════════════════════ TEST DATA ════════════════════ //
+// ════════════════════ DATA ════════════════════ //
 const ELECTION_ROUNDS: RoundConfig[] = [
     {
         title: "Student Association Party",
@@ -66,7 +66,7 @@ const ELECTION_ROUNDS: RoundConfig[] = [
                 keywords: ["no vote", "ไม่ประสงค์"]
             },
             PD: {
-                name: "Damaged Vote (บัตรเสีย)",
+                name: "Invalid Vote (บัตรเสีย)",
                 color: "#ef4444",
                 lightColor: "#fca5a5",
                 keywords: []},
@@ -98,7 +98,7 @@ const ELECTION_ROUNDS: RoundConfig[] = [
                 keywords: ["no vote", "ไม่ประสงค์", "[x]"]
             },
             PD: {
-                name: "Damaged Vote (บัตรเสีย)",
+                name: "Invalid Vote (บัตรเสีย)",
                 color: "#ef4444",
                 lightColor: "#fca5a5",
                 keywords: []},
@@ -130,7 +130,7 @@ const ELECTION_ROUNDS: RoundConfig[] = [
                 keywords: ["no vote", "ไม่ประสงค์", "[x]"]
             },
             PD: {
-                name: "Damaged Vote (บัตรเสีย)",
+                name: "Invalid Vote (บัตรเสีย)",
                 color: "#ef4444",
                 lightColor: "#fca5a5",
                 keywords: []},
@@ -162,7 +162,7 @@ const ELECTION_ROUNDS: RoundConfig[] = [
                 keywords: ["no vote", "ไม่ประสงค์", "[x]"]
             },
             PD: {
-                name: "Damaged Vote (บัตรเสีย)",
+                name: "Invalid Vote (บัตรเสีย)",
                 color: "#ef4444",
                 lightColor: "#fca5a5",
                 keywords: []},
@@ -194,7 +194,7 @@ const ELECTION_ROUNDS: RoundConfig[] = [
                 keywords: ["no vote", "ไม่ประสงค์", "[x]"]
             },
             PD: {
-                name: "Damaged Vote (บัตรเสีย)",
+                name: "Invalid Vote (บัตรเสีย)",
                 color: "#ef4444",
                 lightColor: "#fca5a5",
                 keywords: []},
@@ -226,7 +226,7 @@ const ELECTION_ROUNDS: RoundConfig[] = [
                 keywords: ["no vote", "ไม่ประสงค์", "[x]"]
             },
             PD: {
-                name: "Damaged Vote (บัตรเสีย)",
+                name: "Invalid Vote (บัตรเสีย)",
                 color: "#ef4444",
                 lightColor: "#fca5a5",
                 keywords: []},
@@ -258,7 +258,7 @@ const ELECTION_ROUNDS: RoundConfig[] = [
                 keywords: ["no vote", "ไม่ประสงค์", "[x]"]
             },
             PD: {
-                name: "Damaged Vote (บัตรเสีย)",
+                name: "Invalid Vote (บัตรเสีย)",
                 color: "#ef4444",
                 lightColor: "#fca5a5",
                 keywords: []},
@@ -283,7 +283,7 @@ function parseCSV(text: string, round: RoundConfig): BallotRecord[] {
         if (voteRaw.startsWith("- ")) voteRaw = voteRaw.substring(2);
 
         const lowerVote = voteRaw.toLowerCase();
-        let partyCode = "PD"; // Default to Damaged
+        let partyCode = "PD"; // Default to Invalid
 
         // Scan against this round's specific keywords
         for (const code of round.partyOrder) {
@@ -1011,26 +1011,32 @@ export default function ElectionPage() {
         P1: typeof Audio !== "undefined" ? [
             createPreloadedSound("/sound/endorsev1.m4a"),
             createPreloadedSound("/sound/endorsev2.m4a"),
+            createPreloadedSound("/sound/endorsev3.m4a"),
         ] : [],
         P2: typeof Audio !== "undefined" ? [
             createPreloadedSound("/sound/not-endorsev1.m4a"),
             createPreloadedSound("/sound/not-endorsev2.m4a"),
+            createPreloadedSound("/sound/not-endorsev3.m4a"),
         ] : [],
         PX: typeof Audio !== "undefined" ? [
             createPreloadedSound("/sound/no-votev1.m4a"),
             createPreloadedSound("/sound/no-votev2.m4a"),
+            createPreloadedSound("/sound/no-votev3.m4a"),
         ] : [],
         PD: typeof Audio !== "undefined" ? [
             createPreloadedSound("/sound/damagev1.m4a"),
             createPreloadedSound("/sound/damagev2.m4a"),
+            createPreloadedSound("/sound/damagev3.m4a"),
         ] : [],
         C1: typeof Audio !== "undefined" ? [
             createPreloadedSound("/sound/no1v1.m4a"),
             createPreloadedSound("/sound/no1v2.m4a"),
+            createPreloadedSound("/sound/no1v3.m4a"),
         ] : [],
         C2: typeof Audio !== "undefined" ? [
             createPreloadedSound("/sound/no2v1.m4a"),
             createPreloadedSound("/sound/no2v2.m4a"),
+            createPreloadedSound("/sound/no2v3.m4a"),
         ] : [],
     });
 
