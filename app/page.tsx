@@ -72,38 +72,38 @@ const ELECTION_ROUNDS: RoundConfig[] = [
     //             keywords: []},
     //     }
     // },
-    {
-        title: "Student Representative (ICT Year 1)",
-        filename: "2026 Student Representative E-Ballot Voting (ICT ID68).csv",
-        backgroundImage: "/BackgroundImage/ICT1.png",
-        partyOrder: ["C1", "C2", "PX", "PD"],
-        ballotChoices: ["C1", "C2", "PX"],
-        partyConfig: {
-            C1: {
-                name: "[1] 6888041 Aryan Khan",
-                color: "#10b981",
-                lightColor: "#6ee7b7",
-                keywords: ["[1]"]
-            },
-            C2: {
-                name: "[2] 6888188 Monsiri Yutthasarnsenee",
-                color: "#8b5cf6",
-                lightColor: "#c4b5fd",
-                keywords: ["[2]"]
-            },
-            PX: {
-                name: "No Vote (ไม่ประสงค์ลงคะแนน)",
-                color: "#94a3b8",
-                lightColor: "#cbd5e1",
-                keywords: ["no vote", "ไม่ประสงค์"]
-            },
-            PD: {
-                name: "Invalid Vote (บัตรเสีย)",
-                color: "#ef4444",
-                lightColor: "#fca5a5",
-                keywords: []},
-        }
-    },
+    // {
+    //     title: "Student Representative (ICT Year 1)",
+    //     filename: "2026 Student Representative E-Ballot Voting (ICT ID68).csv",
+    //     backgroundImage: "/BackgroundImage/ICT1.png",
+    //     partyOrder: ["C1", "C2", "PX", "PD"],
+    //     ballotChoices: ["C1", "C2", "PX"],
+    //     partyConfig: {
+    //         C1: {
+    //             name: "[1] 6888041 Aryan Khan",
+    //             color: "#10b981",
+    //             lightColor: "#6ee7b7",
+    //             keywords: ["[1]"]
+    //         },
+    //         C2: {
+    //             name: "[2] 6888188 Monsiri Yutthasarnsenee",
+    //             color: "#8b5cf6",
+    //             lightColor: "#c4b5fd",
+    //             keywords: ["[2]"]
+    //         },
+    //         PX: {
+    //             name: "No Vote (ไม่ประสงค์ลงคะแนน)",
+    //             color: "#94a3b8",
+    //             lightColor: "#cbd5e1",
+    //             keywords: ["no vote", "ไม่ประสงค์"]
+    //         },
+    //         PD: {
+    //             name: "Invalid Vote (บัตรเสีย)",
+    //             color: "#ef4444",
+    //             lightColor: "#fca5a5",
+    //             keywords: []},
+    //     }
+    // },
     {
         title: "Student Representative (ICT Year 2)",
         filename: "2026 Student Representative E-Ballot Voting (ICT ID67).csv",
