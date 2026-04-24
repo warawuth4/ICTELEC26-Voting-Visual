@@ -1010,27 +1010,27 @@ export default function ElectionPage() {
     const audioRefs = useRef<Record<string, HTMLAudioElement[]>>({
         P1: typeof Audio !== "undefined" ? [
             createPreloadedSound("/sound/endorsev1.m4a"),
-            createPreloadedSound("/sound/endorsev2.aac"),
+            createPreloadedSound("/sound/endorsev2.m4a"),
         ] : [],
         P2: typeof Audio !== "undefined" ? [
             createPreloadedSound("/sound/not-endorsev1.m4a"),
-            createPreloadedSound("/sound/not-endorsev2.aac"),
+            createPreloadedSound("/sound/not-endorsev2.m4a"),
         ] : [],
         PX: typeof Audio !== "undefined" ? [
             createPreloadedSound("/sound/no-votev1.m4a"),
-            createPreloadedSound("/sound/no-votev2.aac"),
+            createPreloadedSound("/sound/no-votev2.m4a"),
         ] : [],
         PD: typeof Audio !== "undefined" ? [
             createPreloadedSound("/sound/damagev1.m4a"),
-            createPreloadedSound("/sound/damagev2.aac"),
+            createPreloadedSound("/sound/damagev2.m4a"),
         ] : [],
         C1: typeof Audio !== "undefined" ? [
             createPreloadedSound("/sound/no1v1.m4a"),
-            createPreloadedSound("/sound/no1v2.aac"),
+            createPreloadedSound("/sound/no1v2.m4a"),
         ] : [],
         C2: typeof Audio !== "undefined" ? [
             createPreloadedSound("/sound/no2v1.m4a"),
-            createPreloadedSound("/sound/no2v2.aac"),
+            createPreloadedSound("/sound/no2v2.m4a"),
         ] : [],
     });
 
