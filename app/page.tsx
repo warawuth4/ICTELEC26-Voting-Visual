@@ -42,7 +42,7 @@ interface RoundConfig {
 const ELECTION_ROUNDS: RoundConfig[] = [
     {
         title: "Student Association Party",
-        filename: "2026 Student Association Party E-Ballot Voting (All students)-test.csv",
+        filename: "2026 Student Association Party E-Ballot Voting (All students).csv",
         backgroundImage: "/BackgroundImage/Party.png",
         partyOrder: ["P1", "P2", "PX", "PD"],
         ballotChoices: ["P1", "P2", "PX"],
@@ -74,7 +74,7 @@ const ELECTION_ROUNDS: RoundConfig[] = [
     },
     {
         title: "Student Representative (ICT Year 1)",
-        filename: "2026 Student Representative E-Ballot Voting (ICT ID66)-test.csv",
+        filename: "2026 Student Representative E-Ballot Voting (ICT 68).csv",
         backgroundImage: "/BackgroundImage/ICT1.png",
         partyOrder: ["C1", "C2", "PX", "PD"],
         ballotChoices: ["C1", "C2", "PX"],
@@ -106,7 +106,7 @@ const ELECTION_ROUNDS: RoundConfig[] = [
     },
     {
         title: "Student Representative (ICT Year 2)",
-        filename: "2026 Student Association Party E-Ballot Voting (All students)-test.csv",
+        filename: "2026 Student Representative E-Ballot Voting (ICT ID67).csv",
         backgroundImage: "/BackgroundImage/ICT2.png",
         partyOrder: ["P1", "P2", "PX", "PD"],
         ballotChoices: ["P1", "P2", "PX"],
@@ -138,7 +138,7 @@ const ELECTION_ROUNDS: RoundConfig[] = [
     },
     {
         title: "Student Representative (ICT Year 3)",
-        filename: "2026 Student Representative E-Ballot Voting (ICT ID66)-test.csv",
+        filename: "2026 Student Representative E-Ballot Voting (ICT ID66).csv",
         backgroundImage: "/BackgroundImage/ICT3.png",
         partyOrder: ["C1", "C2", "PX", "PD"],
         ballotChoices: ["C1", "C2", "PX"],
@@ -170,7 +170,7 @@ const ELECTION_ROUNDS: RoundConfig[] = [
     },
     {
         title: "Student Representative (DST Year 1)",
-        filename: "2026 Student Association Party E-Ballot Voting (All students)-test.csv",
+        filename: "2026 Student Representative E-Ballot Voting (DST 68).csv",
         backgroundImage: "/BackgroundImage/DST1.png",
         partyOrder: ["P1", "P2", "PX", "PD"],
         ballotChoices: ["P1", "P2", "PX"],
@@ -202,7 +202,7 @@ const ELECTION_ROUNDS: RoundConfig[] = [
     },
     {
         title: "Student Representative (DST Year 2)",
-        filename: "2026 Student Association Party E-Ballot Voting (All students)-test.csv",
+        filename: "2026 Student Representative E-Ballot Voting (DST 67).csv",
         backgroundImage: "/BackgroundImage/DST2.png",
         partyOrder: ["P1", "P2", "PX", "PD"],
         ballotChoices: ["P1", "P2", "PX"],
@@ -234,7 +234,7 @@ const ELECTION_ROUNDS: RoundConfig[] = [
     },
     {
         title: "Student Representative (DST Year 3)",
-        filename: "2026 Student Association Party E-Ballot Voting (All students)-test.csv",
+        filename: "2026 Student Representative E-Ballot Voting (DST 66).csv",
         backgroundImage: "/BackgroundImage/DST3.png",
         partyOrder: ["P1", "P2", "PX", "PD"],
         ballotChoices: ["P1", "P2", "PX"],
