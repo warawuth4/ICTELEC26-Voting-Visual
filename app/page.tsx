@@ -27,7 +27,7 @@ type Phase = "idle" | "loading" | "parsing" | "counting" | "certified";
    CONSTANTS
    ═══════════════════════════════════════════════════ */
 
-const animationSpeed = 0.018;
+const animationSpeed = 0.025;
 
 interface RoundConfig {
     title: string;
